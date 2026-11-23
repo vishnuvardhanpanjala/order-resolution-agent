@@ -1,0 +1,52 @@
+# Model settings. Any OpenAI-compatible provider works: change base_url, api_key_env and the model IDs.
+# Model IDs, prices and limits checked on console.groq.com/docs on 24 Nov 2026. Check again before a run:
+# Groq retires models often. `make check-models` pings each one.
+provider:
+  name: groq
+  base_url: https://api.groq.com/openai/v1
+  api_key_env: GROQ_API_KEY
+  timeout_s: 40
+
+steps:
+  classify:   # small, cheap, fast. Reads the message into a JSON form.
+    model: llama-3.1-8b-instant
+    fallback: openai/gpt-oss-20b
+    max_tokens: 500
+    temperature: 0
+  draft:      # mid model. Writes the reply. Has no tools.
+    model: openai/gpt-oss-20b
+    fallback: llama-3.3-70b-versatile
+    max_tokens: 700
+    temperature: 0.2
+  judge:      # a different model family from the drafter, so it doesn't share the drafter's blind spots
+    model: llama-3.3-70b-versatile
+    fallback: qwen/qwen3.8-27b
+    max_tokens: 200
+    temperature: 0
+  baseline:   # the "one big prompt" agent gets the biggest model, so the comparison favours it, not us
+    model: openai/gpt-oss-120b
+    fallback: llama-3.3-70b-versatile
+    max_tokens: 900
+    temperature: 0
+
+# Extra request fields per model.
+model_options:
+  openai/gpt-oss-20b: {reasoning_effort: low}
+  openai/gpt-oss-120b: {reasoning_effort: low}
+
+# Free plan limits per model (rpm = requests a minute, tpm = tokens a minute). Your account page
+# (console.groq.com/settings/limits) is the real source. The client stays under 90% of these.
+limits:
+  default: {rpm: 30, tpm: 6000}
+  openai/gpt-oss-20b: {rpm: 30, tpm: 8000}
+  openai/gpt-oss-120b: {rpm: 30, tpm: 8000}
+  qwen/qwen3.8-27b: {rpm: 30, tpm: 8000}
+
+# USD per 1M tokens [input, output], Groq list prices. The free tier really costs $0.
+# Llama models show "contact sales" with no public price, so they use the stand-in, and the
+# eval report says so.
+prices_usd_per_1m:
+  openai/gpt-oss-20b: [0.075, 0.30]
+  openai/gpt-oss-120b: [0.15, 0.60]
+  qwen/qwen3.8-27b: [0.80, 4.00]
+  stand_in: [0.15, 0.60]

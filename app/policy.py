@@ -89,12 +89,12 @@ def decide(p: PolicyInput, c: dict) -> Decision:
     if not p.verified:
         return _clarify("G1", ["To help with an order, please reply with your order number and the email "
                                "address you used to place it."], "identity not verified")
-    if e is None:
-        return _escalate("G5", R.LOW_CONFIDENCE, "model output invalid twice")
     if p.risk_flags:
         return _escalate("G3", R.RISK, "risk flags: " + ", ".join(p.risk_flags))
-    if p.data_error:
+    if p.data_error:  # checked before "model output invalid", so a provider outage is DATA_GAP, not LOW_CONFIDENCE
         return _escalate("G4", R.DATA_GAP, f"system error: {p.data_error}")
+    if e is None:
+        return _escalate("G5", R.LOW_CONFIDENCE, "model output invalid twice")
     if e.confidence < c["MIN_CONFIDENCE"]:
         return _escalate("G5", R.LOW_CONFIDENCE, f"confidence {e.confidence:.2f}")
     money_intents = {I.REFUND_STATUS, I.CANCEL, I.DAMAGED_WRONG_ITEM}

@@ -6,10 +6,9 @@ This is the human-readable copy of `app/policy.py`. Each rule ID appears in ever
 | ID | When | Outcome |
 |---|---|---|
 | G1 | Identity not verified | CLARIFY: ask for order number and email. Share no account data. |
-| G5 | Model output invalid twice | ESCALATED, LOW_CONFIDENCE |
 | G3 | Risk flag: injection, refund to a new account or PayNow number, change of email or payment method, asking about another person | ESCALATED, RISK. No actions. |
-| G4 | A system errored, even after one retry | ESCALATED, DATA_GAP |
-| G5 | Model confidence under 0.6 | ESCALATED, LOW_CONFIDENCE |
+| G4 | A system or the model provider errored, even after one retry | ESCALATED, DATA_GAP |
+| G5 | Model output invalid twice, or confidence under 0.6 | ESCALATED, LOW_CONFIDENCE |
 | A3 | Address change plus a money request | ESCALATED, RISK |
 | G6 | Two or more requests in one message | ESCALATED, POLICY_GAP |
 | O1 | OTHER intent | ESCALATED. KNOWLEDGE_GAP for a question, JUDGEMENT for anything else. |

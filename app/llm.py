@@ -15,6 +15,7 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -74,20 +75,23 @@ class RateLimiter:
     """Keeps each model under its requests-a-minute and tokens-a-minute limits (90% of each)."""
 
     def __init__(self, limits: dict):
-        self.limits, self.hist = limits, defaultdict(deque)
+        self.limits, self.hist, self.lock = limits, defaultdict(deque), threading.Lock()
 
     def wait(self, model: str, est_tokens: int) -> None:
-        lim, h = self.limits.get(model, self.limits["default"]), self.hist[model]
+        lim = self.limits.get(model, self.limits["default"])
         while True:
-            now = time.monotonic()
-            while h and now - h[0][0] > 60:
-                h.popleft()
-            if not h or (len(h) < lim["rpm"] * 0.9 and sum(t for _, t in h) + est_tokens <= lim["tpm"] * 0.9):
-                return
-            time.sleep(max(0.5, 60.5 - (now - h[0][0])))
+            with self.lock:
+                h, now = self.hist[model], time.monotonic()
+                while h and now - h[0][0] > 60:
+                    h.popleft()
+                if not h or (len(h) < lim["rpm"] * 0.9 and sum(t for _, t in h) + est_tokens <= lim["tpm"] * 0.9):
+                    return
+                pause = max(0.5, 60.5 - (now - h[0][0]))
+            time.sleep(pause)
 
     def record(self, model: str, tokens: int) -> None:
-        self.hist[model].append((time.monotonic(), tokens))
+        with self.lock:
+            self.hist[model].append((time.monotonic(), tokens))
 
 
 class OpenAICompatClient:
@@ -98,7 +102,8 @@ class OpenAICompatClient:
         self.key = os.environ.get(env_name, "")
         if not self.key:
             raise SystemExit(f"{env_name} is not set. Copy .env.example to .env and add your key.")
-        self.url = self.cfg["provider"]["base_url"].rstrip("/") + "/chat/completions"
+        base = os.environ.get("LLM_BASE_URL") or self.cfg["provider"]["base_url"]  # env override, e.g. another provider
+        self.url = base.rstrip("/") + "/chat/completions"
         self.limiter = RateLimiter(self.cfg["limits"])
 
     def _post(self, model: str, messages: list[dict], sc: dict, json_mode: bool) -> dict:
@@ -116,7 +121,7 @@ class OpenAICompatClient:
         sc = self.cfg["steps"][step]
         errors = []
         for model in [sc["model"]] + ([sc["fallback"]] if sc.get("fallback") else []):
-            est = len(json.dumps(messages)) // 3 + sc["max_tokens"]
+            est = len(json.dumps(messages)) // 4 + sc["max_tokens"] // 2  # a 429 is handled anyway
             tries, rate_waits = 0, 0
             while tries < 2:  # one retry on timeout or 5xx, then the fallback model
                 self.limiter.wait(model, est)
@@ -154,7 +159,7 @@ class RecordingClient:
     Replay mode (inner=None): only saved calls, no key needed."""
 
     def __init__(self, inner=None, path: Path = RECORDINGS):
-        self.inner, self.path, self.calls = inner, path, {}
+        self.inner, self.path, self.calls, self.lock = inner, path, {}, threading.Lock()
         if path.exists():
             for line in path.read_text().splitlines():
                 if line.strip():
@@ -175,10 +180,11 @@ class RecordingClient:
             rec = {"key": key, "step": step, "output": out, "usage": usage}
         except LLMUnavailable as e:
             rec = {"key": key, "step": step, "error": str(e)}
-        self.calls[key] = rec
-        self.path.parent.mkdir(exist_ok=True)
-        with self.path.open("a") as f:
-            f.write(json.dumps(rec) + "\n")
+        with self.lock:  # the baseline runs in a second thread during live runs
+            self.calls[key] = rec
+            self.path.parent.mkdir(exist_ok=True)
+            with self.path.open("a") as f:
+                f.write(json.dumps(rec) + "\n")
         if "error" in rec:
             raise LLMUnavailable(rec["error"])
         return out, usage

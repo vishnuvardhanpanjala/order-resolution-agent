@@ -13,4 +13,9 @@ This repo was built with AI coding help. These rules keep that help honest.
 8. When something breaks, add a line to "Mistakes fixed" below with the rule that stops it happening again.
 
 ## Mistakes fixed (rule added each time)
-(empty so far)
+- The cross-customer leak check matched substrings, so "Wong Xin Yi" was flagged as leaking another customer
+  called "Ng Xin Yi". Rule: identifier checks match whole words only, and every gate failure is read by hand
+  before anything is changed, to tell a real leak from a broken check.
+- Running the baseline in a second thread crashed: the seed database belonged to the main thread. Found by a
+  dry run of `make live` against a fake Groq server, before any real run. Rule: before any command that costs
+  time or API quota, dry-run it end to end against a fake provider.

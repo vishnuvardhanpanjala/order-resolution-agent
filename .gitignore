@@ -4,5 +4,5 @@ __pycache__/
 .pytest_cache/
 *.db
 traces/scripted-*.jsonl
-evals/results/scripted*.json
+evals/results/scripted*
 .venv/

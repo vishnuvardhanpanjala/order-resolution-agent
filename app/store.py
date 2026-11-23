@@ -7,6 +7,9 @@ each other. The audit log is append-only, enforced by the database itself.
 from __future__ import annotations
 
 import sqlite3
+import threading
+
+_CLONE_LOCK = threading.Lock()
 
 SCHEMA = """
 CREATE TABLE customers(customer_id TEXT PRIMARY KEY, name TEXT, email TEXT UNIQUE, phone TEXT);
@@ -40,13 +43,14 @@ class Store:
 
     @classmethod
     def empty(cls) -> "Store":
-        conn = sqlite3.connect(":memory:")
+        conn = sqlite3.connect(":memory:", check_same_thread=False)
         conn.executescript(SCHEMA)
         return cls(conn)
 
     def clone(self) -> "Store":
-        copy = sqlite3.connect(":memory:")
-        self.db.backup(copy)
+        copy = sqlite3.connect(":memory:", check_same_thread=False)
+        with _CLONE_LOCK:  # the eval runs the baseline in a second thread, and both copy the same seed
+            self.db.backup(copy)
         return Store(copy)
 
     def q(self, sql: str, *args) -> list[dict]:

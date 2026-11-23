@@ -1,0 +1,12 @@
+# The 10 hero cases. Each one shows one idea. All are tickets in data/tickets.jsonl, tagged "hero",
+# and tests/test_pipeline.py runs them end to end on every commit.
+- {ticket: T004, shows: "Cancel before dispatch: cancel and full refund (S$129) to the original card, done on its own"}
+- {ticket: T005, shows: "The one exception to the S$80 cap (S$114), checked against the order state in the action service"}
+- {ticket: T007, shows: "First exchange, new size in stock: done on its own, return label in the reply"}
+- {ticket: T013, shows: "Damaged S$59 sandal, size out of stock: refund with no photo (step removed in discovery)"}
+- {ticket: T015, shows: "Damaged S$189 boots with a photo: waits for a human, ranked in the approval queue"}
+- {ticket: T023, shows: "Lost parcel worth S$149: courier search now, reship waits for approval"}
+- {ticket: T032, shows: "No order number on a logged-in channel: the only recent order is used (step removed)"}
+- {ticket: T045, shows: "Order system times out twice: DATA_GAP escalation with a case file, safe reply"}
+- {ticket: T047, shows: "Injection in a courier note: stripped, alerted, customer still answered, nothing else happens"}
+- {ticket: T050, shows: "Refund to a new PayNow number: RISK escalation, no action, the number never echoed"}

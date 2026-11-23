@@ -1,0 +1,24 @@
+# How much the agent may do on its own, per action class.
+#   L0 = route to a human
+#   L1 = the agent drafts, a human approves
+#   L2 = the agent acts on its own
+# The policy says what is allowed. This file says how far we trust the agent to do it alone.
+# The gate always takes the stricter of the two.
+#
+# Promotion from L1 to L2 (written down, not run, because there is no real traffic):
+#   at least 50 reviewed drafts for that class, humans changed the decision 0 times,
+#   humans edited the text in 10% of drafts or fewer, and 0 policy violations.
+# Any violation moves the class back to L1 at once.
+default_level: L1
+levels:
+  info: L2
+  cancel_before_dispatch: L2
+  exchange_first: L2
+  return_label: L2
+  address_update: L2
+  reship_within_cap: L2
+  replacement_within_cap: L2
+  refund_within_cap: L2
+# Kill switch: put an intent name here (for example DAMAGED_WRONG_ITEM) and every
+# action for that intent waits for a human, with no deploy needed.
+kill_switch: []

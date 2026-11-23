@@ -1,0 +1,20 @@
+# Pebblewalk order-issue policy (fictional brand). Amounts are in SGD.
+# Owner: the policy_owner role. Change it only through a pull request.
+# tests/test_policy.py must stay 100% green after any change.
+version: 1
+currency: SGD
+constants:
+  AUTO_REFUND_CAP: 80            # most money the agent may move on its own
+  ASSOCIATE_APPROVAL_MAX: 300    # cx_associate approves up to this. Above it needs cx_lead.
+  RETURN_WINDOW_DAYS: 30
+  WRONG_ITEM_WINDOW_DAYS: 14     # also used for items that arrive damaged
+  DEFECT_WINDOW_DAYS: 180        # faults that show up with normal use
+  PHOTO_REQUIRED_ABOVE: 80
+  FREE_EXCHANGES_PER_LINE: 1
+  REFUND_VELOCITY_LIMIT: 2       # this many refunds inside the window sends claims to a human
+  REFUND_VELOCITY_DAYS: 90
+  LOST_CLAIM_LOOKBACK_DAYS: 180
+  DELIVERED_WAIT_HOURS: 48
+  REFUND_SLA_BUSINESS_DAYS: 10
+  MIN_CONFIDENCE: 0.6
+  RECENT_ORDER_DAYS: 60          # logged-in customer with one order in this window: use it, don't ask

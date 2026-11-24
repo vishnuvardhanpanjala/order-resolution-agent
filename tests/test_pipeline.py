@@ -108,7 +108,7 @@ def test_trace_is_json_serialisable():
 def test_makefile_only_names_suites_the_runner_knows():
     # A misspelled suite still ran, but its safety gates were silently skipped. Guard both ends.
     from evals.run_evals import SUITES
-    make = (Path(__file__).resolve().parent.parent / "Makefile").read_text()
+    make = (Path(__file__).resolve().parent.parent / "Makefile").read_text(encoding="utf-8")
     named = [s for m in re.findall(r"--suites\s+(\S+)", make) for s in m.split(",")]
     assert named and all(s in SUITES for s in named), named
 
@@ -119,3 +119,29 @@ def test_runner_refuses_an_unknown_suite():
     r = subprocess.run([sys.executable, "-m", "evals.run_evals", "--mode", "scripted", "--suites", "ours,no_scanner"],
                        cwd=Path(__file__).resolve().parent.parent, capture_output=True, text=True)
     assert r.returncode == 2 and "unknown suite" in r.stderr
+
+
+def test_every_file_read_and_write_names_utf8():
+    # Windows defaults to cp1252: a reply with an emoji would crash the report, and Excel's
+    # "CSV UTF-8" adds a BOM that breaks the first column name. Every file call must say its encoding.
+    root = Path(__file__).resolve().parent.parent
+    bad = []
+    for f in [*root.glob("app/*.py"), *root.glob("evals/*.py"), *root.glob("data/*.py")]:
+        text = f.read_text(encoding="utf-8")
+        for m in re.finditer(r"\.(read_text|write_text|open)\(", text):
+            depth, i = 1, m.end()
+            while depth and i < len(text):  # walk to the bracket that closes this call
+                depth += {"(": 1, ")": -1}.get(text[i], 0)
+                i += 1
+            call = text[m.start():i]
+            if "encoding=" not in call:
+                bad.append(f"{f.name}: {call[:60]}")
+    assert not bad, bad
+
+
+def test_every_python_file_compiles():
+    # Some scripts (label export, judge check) only run by hand, so no other test imports them.
+    import py_compile
+    root = Path(__file__).resolve().parent.parent
+    for f in [*root.glob("app/*.py"), *root.glob("evals/*.py"), *root.glob("data/*.py")]:
+        py_compile.compile(str(f), doraise=True)

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from pathlib import Path
 
 from app.llm import load_models_config, load_prompt
@@ -39,6 +40,19 @@ def write_report(result: dict, traces: dict, tickets: list[dict], label: str) ->
     L.append("\n## Models\n\n| step | model | fallback | prompt |\n|---|---|---|---|\n")
     for step, sc in cfg["steps"].items():
         L.append(f"| {step} | {sc['model']} | {sc.get('fallback') or '-'} | {load_prompt(step)[0]} |\n")
+    fell = []  # which model really answered: a fallback changes the numbers, so every such call is counted
+    for suite in cols:
+        used = Counter()
+        for tr in traces.get(suite, []):
+            for s in tr.get("steps", []):
+                used[(s.get("step"), s.get("model"))] += 1
+            if suite == "baseline":
+                used[("baseline", tr.get("model"))] += 1
+        parts = [f"{step} on {m}: {n}" for (step, m), n in sorted(used.items(), key=str)
+                 if m and step in cfg["steps"] and m not in (cfg["steps"][step]["model"], "scripted")]
+        if parts:
+            fell.append(f"{SUITE_NAMES[suite]}: " + ", ".join(parts))
+    L.append("\nCalls answered by a fallback model: " + ("; ".join(fell) if fell else "none") + ".\n")
 
     L.append("\n## Hard gates\n\nCI fails if any of these fail.\n\n| gate | result | value |\n|---|---|---|\n")
     for g in result["gates"]:
@@ -114,8 +128,8 @@ def write_report(result: dict, traces: dict, tickets: list[dict], label: str) ->
             L.append("None.\n")
 
     L.append("\n## Cost and latency\n\n- Groq's free tier costs $0. Costs above are what the same tokens would cost at "
-             "Groq's list prices.\n- Llama models have no public list price, so their calls are priced at the "
-             "gpt-oss-120b rate as a stand-in.\n- Latency is the model call time measured from the machine that ran "
+             "Groq's list prices.\n- A model with no public list price is priced at the gpt-oss-120b rate as a "
+             "stand-in.\n- Latency is the model call time measured from the machine that ran "
              "the live test, plus code time. It leaves out rate-limit waits. Groq is unusually fast, so other "
              "providers would be slower.\n")
     for c in cols:
@@ -126,7 +140,7 @@ def write_report(result: dict, traces: dict, tickets: list[dict], label: str) ->
     jv = ROOT / "evals" / "results" / "judge_validation.json"
     L.append("\n## Judge validation\n\n")
     if jv.exists():
-        j = json.loads(jv.read_text())
+        j = json.loads(jv.read_text(encoding="utf-8"))
         L.append(f"The LLM judge compared with hand labels on {j['n']} replies (\"is this reply OK to send?\").\n\n"
                  "| | human: OK | human: not OK |\n|---|---|---|\n"
                  f"| judge: pass | {j['tp']} | {j['fp']} |\n| judge: fail | {j['fn']} | {j['tn']} |\n\n"
@@ -150,5 +164,5 @@ def write_report(result: dict, traces: dict, tickets: list[dict], label: str) ->
              "See `07_rollout.md` for how those would be measured.\n")
 
     path = ROOT / "docs" / "05_eval_report.md" if label == "recorded" else ROOT / "evals" / "results" / "scripted_report.md"
-    path.write_text("".join(L))
+    path.write_text("".join(L), encoding="utf-8")
     return path

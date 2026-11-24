@@ -37,12 +37,12 @@ class ReplayMiss(Exception):
 
 
 def load_models_config(path: Path = ROOT / "config" / "models.yaml") -> dict:
-    return yaml.safe_load(path.read_text())
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
 def load_prompt(name: str) -> tuple[str, str]:
     """Returns (version, text). The first line of each prompt file is <!-- version: name-vN -->."""
-    text = (ROOT / "prompts" / f"{name}.md").read_text()
+    text = (ROOT / "prompts" / f"{name}.md").read_text(encoding="utf-8")
     m = re.match(r"<!--\s*version:\s*([\w.-]+)\s*-->\s*", text)
     return (m.group(1), text[m.end():]) if m else (f"{name}-unversioned", text)
 
@@ -65,7 +65,7 @@ def strip_thinking(text: str) -> str:
 
 def load_dotenv(path: Path = ROOT / ".env") -> None:
     if path.exists():
-        for line in path.read_text().splitlines():
+        for line in path.read_text(encoding="utf-8").splitlines():
             if "=" in line and not line.lstrip().startswith("#"):
                 k, v = line.split("=", 1)
                 os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
@@ -105,6 +105,7 @@ class OpenAICompatClient:
         base = os.environ.get("LLM_BASE_URL") or self.cfg["provider"]["base_url"]  # env override, e.g. another provider
         self.url = base.rstrip("/") + "/chat/completions"
         self.limiter = RateLimiter(self.cfg["limits"])
+        self.spent = set()  # models that hit a daily cap in this run: skipped until the process restarts
 
     def _post(self, model: str, messages: list[dict], sc: dict, json_mode: bool) -> dict:
         body = {"model": model, "messages": messages, "temperature": sc.get("temperature", 0),
@@ -121,6 +122,9 @@ class OpenAICompatClient:
         sc = self.cfg["steps"][step]
         errors = []
         for model in [sc["model"]] + ([sc["fallback"]] if sc.get("fallback") else []):
+            if model in self.spent:
+                errors.append(f"{model}: daily limit reached earlier in this run")
+                continue
             est = len(json.dumps(messages)) // 4 + sc["max_tokens"] // 2  # a 429 is handled anyway
             tries, rate_waits = 0, 0
             while tries < 2:  # one retry on timeout or 5xx, then the fallback model
@@ -129,11 +133,18 @@ class OpenAICompatClient:
                 try:
                     data = self._post(model, messages, sc, json_mode)
                 except urllib.error.HTTPError as e:
-                    if e.code == 429 and rate_waits < 4:  # rate limited: wait as told, does not count as a try
+                    body, wait = e.read()[:300], float(e.headers.get("retry-after") or 10)
+                    if e.code == 429 and (wait > 65 or b"per day" in body):
+                        # A daily cap, not a per-minute one. Waiting won't help today, so this model is
+                        # skipped for the rest of the run and every call goes to the fallback at once.
+                        self.spent.add(model)
+                        errors.append(f"{model}: daily limit {body[:160]!r}")
+                        break
+                    if e.code == 429 and rate_waits < 4:  # per-minute limit: wait as told, not counted as a try
                         rate_waits += 1
-                        time.sleep(min(float(e.headers.get("retry-after") or 10), 65))
+                        time.sleep(min(wait, 65))
                         continue
-                    errors.append(f"{model}: HTTP {e.code} {e.read()[:160]!r}")
+                    errors.append(f"{model}: HTTP {e.code} {body[:160]!r}")
                     if e.code < 500 and e.code != 429:
                         break  # bad request or unknown model: retrying won't help, go to fallback
                     tries += 1
@@ -161,7 +172,7 @@ class RecordingClient:
     def __init__(self, inner=None, path: Path = RECORDINGS):
         self.inner, self.path, self.calls, self.lock = inner, path, {}, threading.Lock()
         if path.exists():
-            for line in path.read_text().splitlines():
+            for line in path.read_text(encoding="utf-8").splitlines():
                 if line.strip():
                     rec = json.loads(line)
                     self.calls[rec["key"]] = rec
@@ -183,7 +194,7 @@ class RecordingClient:
         with self.lock:  # the baseline runs in a second thread during live runs
             self.calls[key] = rec
             self.path.parent.mkdir(exist_ok=True)
-            with self.path.open("a") as f:
+            with self.path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(rec) + "\n")
         if "error" in rec:
             raise LLMUnavailable(rec["error"])

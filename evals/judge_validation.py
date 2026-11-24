@@ -22,9 +22,9 @@ def _rate(hit: int, total: int, empty: str) -> str:
 
 
 def main():
-    labels = list(csv.DictReader((ROOT / "evals" / "labels" / "to_label.csv").open()))
+    labels = list(csv.DictReader((ROOT / "evals" / "labels" / "to_label.csv").open(encoding="utf-8-sig", newline="")))
     traces = {json.loads(l)["ticket_id"]: json.loads(l)
-              for l in (ROOT / "traces" / "recorded-ours.jsonl").read_text().splitlines() if l}
+              for l in (ROOT / "traces" / "recorded-ours.jsonl").read_text(encoding="utf-8").splitlines() if l}
     tp = fp = fn = tn = 0  # "positive" here means the judge passes the reply
     for row in labels:
         human = row["reply_ok"].strip().lower()[:1]
@@ -45,7 +45,7 @@ def main():
            "passes_good": _rate(tp, tp + fn, "no good replies labelled"),
            "warning": (f"Only {bad} bad replies labelled. The catch rate can't be trusted below {MIN_BAD}."
                        if bad < MIN_BAD else "")}
-    (ROOT / "evals" / "results" / "judge_validation.json").write_text(json.dumps(res, indent=1))
+    (ROOT / "evals" / "results" / "judge_validation.json").write_text(json.dumps(res, indent=1), encoding="utf-8")
     print(json.dumps(res, indent=1))
 
 

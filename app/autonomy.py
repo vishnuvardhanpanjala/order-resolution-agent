@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def load_autonomy_config(path: Path = ROOT / "config" / "autonomy.yaml") -> dict:
-    return yaml.safe_load(Path(path).read_text())
+    return yaml.safe_load(Path(path).read_text(encoding="utf-8"))
 
 
 def gate(decision: Decision, intent: Intent | None, cfg: dict) -> Decision:

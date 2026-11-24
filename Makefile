@@ -1,4 +1,9 @@
+# Windows names the interpreter python (python3 there often opens the Microsoft Store instead).
+ifeq ($(OS),Windows_NT)
+PY ?= python
+else
 PY ?= python3
+endif
 
 .PHONY: test eval demo seed check-models live labels judge
 

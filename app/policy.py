@@ -23,7 +23,7 @@ TEAM_REPLY = "A member of our team will look at this and reply within 1 business
 
 
 def load_policy_config(path: Path = ROOT / "config" / "policy.yaml") -> dict:
-    return yaml.safe_load(Path(path).read_text())["constants"]
+    return yaml.safe_load(Path(path).read_text(encoding="utf-8"))["constants"]
 
 
 # ---------- small helpers ----------

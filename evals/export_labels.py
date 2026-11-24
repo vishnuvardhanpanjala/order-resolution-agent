@@ -32,8 +32,8 @@ def order_facts(store, tr) -> str:
 
 
 def main(n: int = 40):
-    traces = [json.loads(l) for l in (ROOT / "traces" / "recorded-ours.jsonl").read_text().splitlines() if l]
-    rows = {r["ticket_id"]: r for r in json.loads((ROOT / "evals" / "results" / "recorded.json").read_text())["rows"]["ours"]}
+    traces = [json.loads(l) for l in (ROOT / "traces" / "recorded-ours.jsonl").read_text(encoding="utf-8").splitlines() if l]
+    rows = {r["ticket_id"]: r for r in json.loads((ROOT / "evals" / "results" / "recorded.json").read_text(encoding="utf-8"))["rows"]["ours"]}
     flagged = [t for t in traces if not (rows[t["ticket_id"]]["disp_ok"] and rows[t["ticket_id"]]["actions_ok"]
                                          and rows[t["ticket_id"]]["mention_ok"]) or t["reply_held"]
                or (t.get("judge") or {}).get("pass") is False]
@@ -43,12 +43,13 @@ def main(n: int = 40):
     pick = flagged + rest[:max(0, n - len(flagged))]
     rng.shuffle(pick)
     # Never lose labels: rows already in the file stay first, as they are. Only new traces are added after them.
-    kept = list(csv.DictReader(OUT.open())) if OUT.exists() else []
+    kept = list(csv.DictReader(OUT.open(encoding="utf-8-sig", newline=""))) if OUT.exists() else []
     have = {r["trace_id"] for r in kept}
     pick = [tr for tr in pick if f"{tr['run_id']}:{tr['ticket_id']}" not in have][:max(0, n - len(kept))]
     store, tickets = seeded_store(), {t["ticket_id"]: t for t in load_tickets()}
     OUT.parent.mkdir(exist_ok=True)
-    with OUT.open("w", newline="") as f:
+    # utf-8-sig writes the marker Excel needs to show non-English text, and strips it again when reading.
+    with OUT.open("w", newline="", encoding="utf-8-sig") as f:
         w = csv.DictWriter(f, COLS)
         w.writeheader()
         w.writerows({c: r.get(c, "") for c in COLS} for r in kept)

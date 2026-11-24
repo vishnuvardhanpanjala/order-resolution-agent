@@ -124,13 +124,13 @@ def build_tickets(store: Store) -> list[dict]:
 
 
 def load_tickets(path: Path = ROOT / "tickets.jsonl") -> list[dict]:
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
 def main():
     store = build_store()
     tickets = build_tickets(store)
-    (ROOT / "tickets.jsonl").write_text("".join(json.dumps(t) + "\n" for t in tickets))
+    (ROOT / "tickets.jsonl").write_text("".join(json.dumps(t) + "\n" for t in tickets), encoding="utf-8")
     n = {k: store.one(f"SELECT COUNT(*) AS n FROM {k}")["n"] for k in ("customers", "orders", "refunds")}
     tags = {g: sum(g in t["tags"] for t in tickets) for g in ("normal", "edge", "adversarial", "hero")}
     print(f"wrote {len(tickets)} tickets {tags}; store: {n}")

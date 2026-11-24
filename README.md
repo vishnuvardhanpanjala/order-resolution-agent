@@ -8,11 +8,11 @@ An agent that resolves customer order issues end to end where policy allows, and
 
 ```bash
 pip install -r requirements.txt
-make test    # 95 tests: policy, controls, verifier, pipeline, Groq client against a fake server
+make test    # 98 tests: policy, controls, verifier, pipeline, Groq client against a fake server
 make eval    # evals and hard gates (replays recorded model calls, or a scripted stand-in model)
 make demo    # 10 hero tickets, the approval queue, one human approval, the audit log
 ```
-No `make` (Windows)? Use `python -m pytest -q`, `python -m evals.run_evals`, `python -m app.demo`.
+No `make` (common on Windows)? Every target is one Python command, listed in the Makefile. For example `python -m pytest -q`, `python -m evals.run_evals`, `python -m app.demo`.
 
 ## Live run on Groq (free tier, about 20 to 25 minutes)
 

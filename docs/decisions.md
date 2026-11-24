@@ -87,7 +87,9 @@ If the judge model is down or returns junk twice, the draft is not sent. The cus
 Groq speaks the OpenAI chat format, so about 100 lines of code do the job with no extra dependency. Changing provider means editing `models.yaml` or setting `LLM_BASE_URL`.
 
 **23. A model per step.**
-Classify uses the small, fast llama-3.1-8b-instant, because reading a message into a form is a simple job. Draft uses gpt-oss-20b. The judge is llama-3.3-70b, a different family from the drafter, so it doesn't share the drafter's blind spots. Every step has a fallback model.
+Classify and draft use gpt-oss-20b, the smallest and cheapest model on offer, because reading a message into a form and writing from fixed points are simple jobs. The judge is qwen3.8-27b, a different family from the drafter, so it doesn't share the drafter's blind spots. Every step has a fallback model.
+This changed once. The first plan used Llama 3.1 8B to classify and Llama 3.3 70B to judge. The model check before the first live run found both gone: Groq shut them down for free accounts on 16 Aug 2026. Classify moved to gpt-oss-20b, Groq's own named replacement. The judge moved to Qwen, to keep it in a different family from the drafter.
+Cost: classify and draft now share one model's daily cap of 200K tokens. A full run uses about 125K of it. If a second run on the same day hits the cap, the client skips that model for the rest of the run and uses the fallback, and the report counts every call that did.
 
 **24. The baseline gets the biggest model and the same facts.**
 gpt-oss-120b, the same customer scoping, the same facts including the raw courier note. So any gap is about who decides (code or model), not about model size or data access. The comparison is tilted in the baseline's favour on purpose.

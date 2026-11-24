@@ -23,5 +23,11 @@ This repo was built with AI coding help. These rules keep that help honest.
   and the detection-off safety gates would have been silently left out of the report. The dry run didn't catch it,
   because nothing checked which suites the gates covered. Found by reading the Makefile line by line. Rule: the
   runner refuses unknown suite names, and a test checks every suite the Makefile names.
+- The model check before the first live run found two models gone: Groq shut Llama 3.1 8B and 3.3 70B down
+  for free accounts in August 2026. Rule: `make check-models` before every live run, and the model list in
+  `config/models.yaml` records the date it was checked.
+- Adding UTF-8 to the label export left a comment in the middle of a line, which broke the file. No test
+  imported that script, so 97 tests still passed. A dry run of the labelling steps caught it. Rule: a test
+  compiles every Python file, and dry runs cover the hand-run scripts too, not just `make live`.
 - "Label more rows" would have re-exported the label file and wiped labels already written. Rule: the label
   export keeps every existing row and its labels, and only adds new rows at the bottom.

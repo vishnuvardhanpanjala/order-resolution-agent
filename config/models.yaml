@@ -1,6 +1,7 @@
 # Model settings. Any OpenAI-compatible provider works: change base_url, api_key_env and the model IDs.
 # Model IDs, prices and limits checked on console.groq.com/docs on 24 Nov 2026. Check again before a run:
-# Groq retires models often. `make check-models` pings each one.
+# Groq retires models often: Llama 3.1 8B and 3.3 70B were shut down for free accounts on 16 Aug 2026.
+# `make check-models` pings each one.
 provider:
   name: groq
   base_url: https://api.groq.com/openai/v1
@@ -8,24 +9,24 @@ provider:
   timeout_s: 40
 
 steps:
-  classify:   # small, cheap, fast. Reads the message into a JSON form.
-    model: llama-3.1-8b-instant
-    fallback: openai/gpt-oss-20b
+  classify:   # smallest, cheapest model. Reads the message into a JSON form.
+    model: openai/gpt-oss-20b
+    fallback: openai/gpt-oss-120b
     max_tokens: 500
     temperature: 0
-  draft:      # mid model. Writes the reply. Has no tools.
+  draft:      # same small model. Writes the reply. Has no tools.
     model: openai/gpt-oss-20b
-    fallback: llama-3.3-70b-versatile
+    fallback: openai/gpt-oss-120b
     max_tokens: 700
     temperature: 0.2
   judge:      # a different model family from the drafter, so it doesn't share the drafter's blind spots
-    model: llama-3.3-70b-versatile
-    fallback: qwen/qwen3.8-27b
+    model: qwen/qwen3.8-27b
+    fallback: openai/gpt-oss-120b   # same family as the drafter: the report counts any call that lands here
     max_tokens: 200
     temperature: 0
   baseline:   # the "one big prompt" agent gets the biggest model, so the comparison favours it, not us
     model: openai/gpt-oss-120b
-    fallback: llama-3.3-70b-versatile
+    fallback: qwen/qwen3.8-27b
     max_tokens: 900
     temperature: 0
 
@@ -33,9 +34,13 @@ steps:
 model_options:
   openai/gpt-oss-20b: {reasoning_effort: low}
   openai/gpt-oss-120b: {reasoning_effort: low}
+  qwen/qwen3.8-27b: {reasoning_effort: none}   # its default puts <think> text in the reply, which breaks JSON mode
 
-# Free plan limits per model (rpm = requests a minute, tpm = tokens a minute). Your account page
+# Free plan limits per model (rpm = requests a minute, tpm = tokens a minute). The account page
 # (console.groq.com/settings/limits) is the real source. The client stays under 90% of these.
+# Each model also has a daily cap of 200K tokens. A full run uses about 125K on gpt-oss-20b
+# (classify + draft), 110K on gpt-oss-120b (baseline) and 25K on qwen (judge). A model that hits
+# its daily cap is skipped for the rest of the run and its fallback takes over.
 limits:
   default: {rpm: 30, tpm: 6000}
   openai/gpt-oss-20b: {rpm: 30, tpm: 8000}
@@ -43,8 +48,7 @@ limits:
   qwen/qwen3.8-27b: {rpm: 30, tpm: 8000}
 
 # USD per 1M tokens [input, output], Groq list prices. The free tier really costs $0.
-# Llama models show "contact sales" with no public price, so they use the stand-in, and the
-# eval report says so.
+# A model with no public price uses the stand-in, and the eval report says so.
 prices_usd_per_1m:
   openai/gpt-oss-20b: [0.075, 0.30]
   openai/gpt-oss-120b: [0.15, 0.60]

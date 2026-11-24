@@ -113,7 +113,7 @@ def build_tickets(store: Store) -> list[dict]:
             "ticket_id": t["tid"], "channel": t["channel"],
             "authenticated_customer_id": t["cid"] if t["channel"] == "web_chat" else None,
             "from_email": email if t["channel"] == "email" else None,
-            "messages": [{"role": "customer", "text": t["text"]}],
+            "messages": [{"role": r, "text": x} for r, x in t["thread"]] + [{"role": "customer", "text": t["text"]}],
             "attachments": [{"type": "image", "name": "photo_1.jpg"}] if t["photo"] else [],
             "expected": {"intent": t["intent"], "order_id": t["order"], "disposition": t["disp"],
                          "actions": t["actions"], "approval_actions": t["approvals"], "reason_code": t["reason"],

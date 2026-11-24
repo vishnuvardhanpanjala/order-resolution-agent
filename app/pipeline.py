@@ -27,6 +27,10 @@ from app.verify import run_checks
 from data.seed import seeded_store
 
 ORDER_RE = re.compile(r"\bO\d{4}\b", re.I)
+# "Can I talk to a real person?" A plain request needs no model to spot it, so code checks it too.
+WANTS_HUMAN_RE = re.compile(r"\b(?:talk|speak|chat)\s+(?:to|with)\s+(?:a\s+|an\s+|your\s+|some\s+)?(?:real\s+|live\s+)?"
+                            r"(?:human|person|people|someone|staff|agent|officer)\b"
+                            r"|\b(?:human|real person|live agent)\s+(?:please|pls)\b", re.I)
 RULE_INTENT = {"W": I.WISMO, "C": I.CANCEL, "R": I.RETURN_EXCHANGE, "D": I.DAMAGED_WRONG_ITEM,
                "F": I.REFUND_STATUS, "A": I.ADDRESS_CHANGE}
 HOLD_REPLY = "Hi there,\n\nThanks for your message. " + TEAM_REPLY + "\n\nPebblewalk Support"
@@ -69,15 +73,10 @@ def gather_facts(tools: ScopedTools | None, ext, text: str, cfg: dict, tr: dict,
             return f
         if ext.intent == I.OTHER:
             return f
-        oid = ext.order_id or (ORDER_RE.search(text).group(0).upper() if ORDER_RE.search(text) else None)
-        if oid:
-            f["order_ref_given"] = True
-        else:  # step removed in discovery: don't ask a logged-in customer for an order number we can work out
-            recent = tools.find_recent_orders(cfg["RECENT_ORDER_DAYS"])
-            if len(recent) == 1:
-                oid = tr["order_inferred"] = recent[0]
-        if not oid:
+        oid = ext.order_id  # the pipeline already filled it from the text if the model missed it
+        if not oid:  # policy owner's call (decision #39): ask which order, never guess one
             return f
+        f["order_ref_given"] = True
         o = f["order"] = tools.get_order(oid)
         if o is None:
             return f
@@ -160,6 +159,10 @@ def run_ticket(ticket: dict, env: Env, store: Store | None = None) -> dict:
     systems = MockSystems(store)
     service = ActionService(store, systems, env.policy_cfg)
     text = "\n".join(m["text"] for m in ticket["messages"] if m["role"] == "customer")
+    prior = sum(m["role"] == "agent" for m in ticket["messages"])
+    # In a thread the model reads the whole conversation; the scanner and the regexes read only the customer.
+    convo = text if not prior else "\n".join(
+        ("Customer: " if m["role"] == "customer" else "Pebblewalk: ") + m["text"] for m in ticket["messages"])
     tr = {"ticket_id": ticket["ticket_id"], "run_id": env.run_id, "mode": env.mode, "detection_on": env.detection_on,
           "steps": [], "tool_calls": [], "security_alerts": [], "actions": []}
 
@@ -170,9 +173,13 @@ def run_ticket(ticket: dict, env: Env, store: Store | None = None) -> dict:
 
     ext, provider_error = None, None
     try:
-        ext = steps.classify(env.llm, text, tr)
+        ext = steps.classify(env.llm, convo, tr)
     except LLMUnavailable as e:
         provider_error = f"model provider unavailable: {str(e)[:120]}"
+    found = ORDER_RE.findall(text)
+    if ext and not ext.order_id and found:  # code backs up the model: an order number in the text is a fact
+        ext = ext.model_copy(update={"order_id": found[-1].upper()})
+        tr["order_from_text"] = True
     if ext and ext.suspicious and env.detection_on:
         flags.append("model_flagged")
     tr["extraction"], tr["risk_flags"] = (ext.model_dump(mode="json") if ext else None), flags
@@ -182,9 +189,13 @@ def run_ticket(ticket: dict, env: Env, store: Store | None = None) -> dict:
     facts = gather_facts(tools, ext, text, env.policy_cfg, tr, env.detection_on)
     if provider_error:
         facts["data_error"] = provider_error
-    p = PolicyInput(verified=cid is not None, extraction=ext, risk_flags=flags,
+    p = PolicyInput(verified=cid is not None, extraction=ext, risk_flags=flags, prior_agent_replies=prior,
+                    wants_human=bool((ext and ext.wants_human) or WANTS_HUMAN_RE.search(text)),
                     photo_attached=any(a.get("type") == "image" for a in ticket.get("attachments", [])), **facts)
     policy_decision = decide(p, env.policy_cfg)
+    if policy_decision.alert:  # a quiet note for the risk team; the customer still gets an answer
+        tr["security_alerts"].append({"source": "policy", "rule": policy_decision.rule_id,
+                                      "handled": policy_decision.alert})
     decision = gate(policy_decision, ext.intent if ext else None, env.autonomy_cfg)
     tr["gate_changed"] = decision.rule_id != policy_decision.rule_id
 

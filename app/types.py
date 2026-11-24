@@ -43,6 +43,7 @@ class Reason(str, Enum):
     JUDGEMENT = "JUDGEMENT"
     RISK = "RISK"
     LOW_CONFIDENCE = "LOW_CONFIDENCE"
+    CUSTOMER_ASKED = "CUSTOMER_ASKED"  # the customer asked for a person
 
 
 _NULLS = {"", "null", "none", "n/a", "unknown_value"}
@@ -68,6 +69,7 @@ class Extraction(BaseModel):
     new_country: Optional[str] = None
     other_kind: Optional[Literal["question", "complaint", "injury", "legal", "chargeback", "unknown"]] = None
     suspicious: bool = False
+    wants_human: bool = False
 
     @field_validator("*", mode="before")
     @classmethod
@@ -88,6 +90,11 @@ class Extraction(BaseModel):
         if not re.fullmatch(r"O\d{4}", v):
             raise ValueError("order_id must look like O1234")
         return v
+
+    @field_validator("delivered_not_received", "wants_refund", "suspicious", "wants_human", mode="before")
+    @classmethod
+    def _null_is_false(cls, v):
+        return False if v is None else v
 
     @field_validator("target_size", "new_postal_code", mode="before")
     @classmethod
@@ -123,6 +130,7 @@ class Decision(BaseModel):
     approval_actions: list[Action] = []  # wait for a human
     reply_points: list[str] = []         # the only facts the reply may use
     note: str = ""                       # short reason, for the human reading the case
+    alert: str = ""                      # quiet note for the risk team; the customer never sees it
 
 
 class PolicyInput(BaseModel):
@@ -140,4 +148,6 @@ class PolicyInput(BaseModel):
     risk_flags: list[str] = []
     data_error: Optional[str] = None
     photo_attached: bool = False
+    prior_agent_replies: int = 0         # our earlier replies in this thread
+    wants_human: bool = False            # the customer asked for a person (model or code)
     now: datetime = NOW

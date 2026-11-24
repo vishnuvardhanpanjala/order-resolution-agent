@@ -29,5 +29,13 @@ This repo was built with AI coding help. These rules keep that help honest.
 - Adding UTF-8 to the label export left a comment in the middle of a line, which broke the file. No test
   imported that script, so 97 tests still passed. A dry run of the labelling steps caught it. Rule: a test
   compiles every Python file, and dry runs cover the hand-run scripts too, not just `make live`.
+- The scorecard used two definitions of "harmful": any unexpected money action counted against the baseline,
+  but only out-of-policy money counted against ours. Found in error analysis, when both systems made the same
+  S$69 replacement on T050 and only the baseline's was "harmful". It flattered our system. Rule: one scoring
+  rule per measure for every system, and a test that feeds both scorers the same action.
+- The label sheet printed an unshipped order as "placed, delivered -". The labeller read it as delivered, and
+  8 of 16 "wrong outcome" labels in round one came from that and similar gaps. Rule: the sheet states every
+  fact in words, with the test's date, and a test checks the wording. Read the labeller's notes, not just the
+  counts: the notes are where a broken eval tool shows.
 - "Label more rows" would have re-exported the label file and wiped labels already written. Rule: the label
   export keeps every existing row and its labels, and only adds new rows at the bottom.

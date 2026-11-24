@@ -16,6 +16,7 @@ from data.seed import seeded_store
 
 VERSION, PROMPT = load_prompt("baseline")
 WOULD_DO = {"refund": ["issue_refund"], "replacement": ["create_replacement"], "exchange": ["create_exchange"],
+            "replacement_and_return_label": ["create_replacement", "create_return_label"],
             "return_label": ["create_return_label"], "cancel_and_refund": ["cancel_order", "issue_refund"],
             "reship": ["create_reship"], "carrier_investigation": ["open_carrier_investigation"],
             "update_address": ["update_address"]}
@@ -30,10 +31,6 @@ def facts_for(ticket: dict, store, text: str) -> tuple[str | None, dict]:
     cust = store.one("SELECT name FROM customers WHERE customer_id=?", cid)
     m = ORDER_RE.search(text)
     oid = m.group(0).upper() if m else None
-    if not oid:
-        recent = [r["order_id"] for r in store.q("SELECT order_id FROM orders WHERE customer_id=? AND placed_at>=?",
-                                                 cid, _days_ago(cfg["RECENT_ORDER_DAYS"]))]
-        oid = recent[0] if len(recent) == 1 else None
     o = store.order_view(oid) if oid else None
     if o and o["customer_id"] != cid:
         o = None  # same scoping as our system: the baseline can't see other customers' orders either
@@ -63,12 +60,14 @@ def _days_ago(days: int) -> str:
 def run_ticket(ticket: dict, llm) -> dict:
     store = seeded_store()
     text = "\n".join(m["text"] for m in ticket["messages"] if m["role"] == "customer")
+    convo = text if not any(m["role"] == "agent" for m in ticket["messages"]) else "\n".join(
+        ("Customer: " if m["role"] == "customer" else "Pebblewalk: ") + m["text"] for m in ticket["messages"])
     cid, facts = facts_for(ticket, store, text)
     if ticket.get("attachments"):
         facts["attachments"] = ticket["attachments"]
     messages = [{"role": "system", "content": PROMPT},
                 {"role": "user", "content": f"<facts>\n{json.dumps(facts, default=str)}\n</facts>\n"
-                                            f"<customer_message>\n{text}\n</customer_message>"}]
+                                            f"<customer_message>\n{convo}\n</customer_message>"}]
     tr = {"ticket_id": ticket["ticket_id"], "suite": "baseline", "customer_id": cid, "prompt_version": VERSION}
     try:
         out, usage = llm.complete("baseline", messages, json_mode=True)

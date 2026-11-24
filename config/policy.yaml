@@ -17,4 +17,4 @@ constants:
   DELIVERED_WAIT_HOURS: 48
   REFUND_SLA_BUSINESS_DAYS: 10
   MIN_CONFIDENCE: 0.6
-  RECENT_ORDER_DAYS: 60          # logged-in customer with one order in this window: use it, don't ask
+  MAX_CLARIFY_TURNS: 2           # after 2 of our replies in a thread, a still-unclear case goes to a person

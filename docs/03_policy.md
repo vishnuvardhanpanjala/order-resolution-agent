@@ -3,18 +3,29 @@
 This is the human-readable copy of `app/policy.py`. Each rule ID appears in every trace and audit-log row, so any outcome can be traced back to one line here. Numbers come from `config/policy.yaml`. Amounts are SGD.
 
 ## Global rules (checked first, in this order)
+The principle, set by the policy owner after the first round of labels: ask for details first, act only when it is safe, and hand over to a person when asking stops helping (decision #38).
+
 | ID | When | Outcome |
 |---|---|---|
+| G0 | The customer asks for a person | ESCALATED, CUSTOMER_ASKED |
 | G1 | Identity not verified | CLARIFY: ask for order number and email. Share no account data. |
-| G3 | Risk flag: injection, refund to a new account or PayNow number, change of email or payment method, asking about another person | ESCALATED, RISK. No actions. |
+| G3 | Risk flag: injection or commands, refund to a new account or PayNow number, change of email or payment method, claimed staff authority, asking for internal rules | ESCALATED, RISK. No actions. |
 | G4 | A system or the model provider errored, even after one retry | ESCALATED, DATA_GAP |
-| G5 | Model output invalid twice, or confidence under 0.6 | ESCALATED, LOW_CONFIDENCE |
+| G5 | Model output invalid twice | ESCALATED, LOW_CONFIDENCE |
+| G9 | Asking about another person's order or account | CLARIFY: we can only share your own orders, send your order number. Quiet alert to the risk team. |
+| G5 | Model confidence under 0.6 | CLARIFY: tell us a bit more |
 | A3 | Address change plus a money request | ESCALATED, RISK |
 | G6 | Two or more requests in one message | ESCALATED, POLICY_GAP |
 | O1 | OTHER intent | ESCALATED. KNOWLEDGE_GAP for a question, JUDGEMENT for anything else. |
+| G7 | No order number given (any intent, refund status too) | CLARIFY: which order? Never guess one (decision #39). |
 | G2 | Order number given but not on this account | CLARIFY: "we could not find it". Never confirm it exists. |
-| G7 | No order number and no single recent order | CLARIFY: which order? |
 | L1 | Order has several items and we can't tell which | CLARIFY: which item? |
+
+Two checks run on the result of the rules above:
+| ID | When | Outcome |
+|---|---|---|
+| G3 | The model alone found the message suspicious, and the answer would take an action | ESCALATED, RISK. If the answer takes no action (a final-sale "no", a tracking number), it goes out, with a quiet alert. |
+| G8 | The answer is a question, and we have already replied twice in this conversation | ESCALATED, LOW_CONFIDENCE |
 
 ## Refund rules (apply everywhere)
 - Refund amount = what was paid for the line (after discounts) minus earlier refunds on it. Never more.
@@ -28,7 +39,7 @@ This is the human-readable copy of `app/policy.py`. Each rule ID appears in ever
 | W3 | WISMO | delivered, no complaint | AUTO: delivery date |
 | W4 | WISMO | delivered but not received, under 48h | AUTO: check locker and neighbours, wait 48h |
 | W5 | WISMO | not received, 48h or more, order up to S$80, no lost-parcel claim in 180 days | AUTO: open courier search and reship |
-| W6 | WISMO | not received, 48h or more, otherwise | Courier search now. Reship waits for approval. |
+| W6 | WISMO | not received, 48h or more, otherwise | Courier search now. Reship waits for approval. The reply says a check is pending. |
 | C1 | CANCEL | placed or packed | AUTO: cancel and full refund, at any amount (the goods never left) |
 | C2 | CANCEL | shipped or delivered | AUTO: explain the return route |
 | R0 | RETURN_EXCHANGE | not delivered yet | ESCALATED, POLICY_GAP |
@@ -43,17 +54,17 @@ This is the human-readable copy of `app/policy.py`. Each rule ID appears in ever
 | D4 | DAMAGED_WRONG_ITEM | outside window: 14 days for wrong or damaged on arrival, 180 for a defect | AUTO: decline, say why |
 | D5 | DAMAGED_WRONG_ITEM | 2 or more refunds in the last 90 days | ESCALATED, RISK |
 | D7 | DAMAGED_WRONG_ITEM | nothing left to refund on the line | ESCALATED, JUDGEMENT |
-| D1 | DAMAGED_WRONG_ITEM | value up to S$80, in stock | AUTO: replacement, no photo |
-| D2 | DAMAGED_WRONG_ITEM | value up to S$80, out of stock | AUTO: refund the line value, no photo |
+| D1 | DAMAGED_WRONG_ITEM | value up to S$80, in stock | AUTO: replacement, no photo. A wrong item also gets a free return label for the wrong pair (decision #40). |
+| D2 | DAMAGED_WRONG_ITEM | value up to S$80, out of stock | AUTO: refund the line value, no photo. A wrong item also gets a free return label. |
 | D3 | DAMAGED_WRONG_ITEM | value over S$80, no photo | CLARIFY: ask for a photo |
 | D6 | DAMAGED_WRONG_ITEM | value over S$80, photo attached | Replacement or refund waits for a human to check the photo |
-| F1 | REFUND_STATUS | refunds found, none late | AUTO: status, amount, date |
+| F1 | REFUND_STATUS | order number given, refunds found, none late | AUTO: status, amount, date |
 | F2 | REFUND_STATUS | a refund pending over 10 business days | ESCALATED, JUDGEMENT (payments team) |
 | F3 | REFUND_STATUS | no refund found | AUTO: say so, ask what they expected |
-| A1 | ADDRESS_CHANGE | placed or packed, Singapore address with 6-digit postal code | AUTO: update |
+| A1 | ADDRESS_CHANGE | placed or packed, Singapore address with 6-digit postal code | AUTO: update. The reply repeats the full address with the postal code. |
 | A2 | ADDRESS_CHANGE | shipped or delivered | AUTO: explain it can't change |
-| A4 | ADDRESS_CHANGE | address outside Singapore | ESCALATED, RISK |
-| A5 | ADDRESS_CHANGE | no full address given | CLARIFY: ask for it |
+| A4 | ADDRESS_CHANGE | address outside Singapore | CLARIFY: we only deliver in Singapore, send a Singapore address. Quiet alert. |
+| A5 | ADDRESS_CHANGE | no full address, or the postal code is not 6 digits | CLARIFY: ask for it |
 
 ## Autonomy gate (after the policy)
 `config/autonomy.yaml` sets a level for each action class. If the policy says AUTO but the class is at L1, the same actions wait for a human. At L0 the ticket goes to a person. A kill switch per intent forces L1 with no deploy.

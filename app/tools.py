@@ -18,13 +18,14 @@ ALLOWLIST: dict[Intent, set[str]] = {
     Intent.WISMO: {"get_order", "get_shipment", "open_carrier_investigation", "create_reship"},
     Intent.CANCEL: {"get_order", "cancel_order", "issue_refund"},
     Intent.RETURN_EXCHANGE: {"get_order", "check_stock", "create_exchange", "create_return_label"},
-    Intent.DAMAGED_WRONG_ITEM: {"get_order", "check_stock", "create_replacement", "issue_refund"},
+    Intent.DAMAGED_WRONG_ITEM: {"get_order", "check_stock", "create_replacement", "issue_refund",
+                                "create_return_label"},  # a wrong item comes back on a free label
     Intent.REFUND_STATUS: {"get_refunds"},
     Intent.ADDRESS_CHANGE: {"get_order", "update_address"},
     Intent.OTHER: set(),
 }
-# Account-level reads every intent may use: refund and lost-parcel counts, and recent order IDs.
-ALWAYS_READ = {"get_risk_signals", "find_recent_orders"}
+# Account-level read every intent may use: refund and lost-parcel counts.
+ALWAYS_READ = {"get_risk_signals"}
 
 
 class ToolNotAllowed(Exception):
@@ -79,8 +80,6 @@ class ScopedTools:
     def get_refunds(self) -> list[dict]:
         return self._call("get_refunds", lambda: self.sys.get_refunds(self.cid), {})
 
-    def find_recent_orders(self, days: int) -> list[str]:
-        return self._call("find_recent_orders", lambda: self.sys.orders_since(self.cid, days), {"days": days})
 
     def get_risk_signals(self, refund_days: int, claim_days: int) -> dict:
         def run():

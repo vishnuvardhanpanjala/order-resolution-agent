@@ -20,6 +20,11 @@ from app.types import Action, Decision, Disposition as D, Intent as I, PolicyInp
 
 ROOT = Path(__file__).resolve().parent.parent
 TEAM_REPLY = "A member of our team will look at this and reply within 1 business day."
+ASK_ORDER = "Which order is this about? Please reply with the order number. It starts with the letter O."
+# Flags that send a case straight to a person: the message tries to move money, change the account, claim
+# authority, or command the system. Any flag not named in SOFT_FLAGS counts here, so a new flag is safe by default.
+SOFT_FLAGS = {"other_person", "other_email", "model_flagged"}
+OTHER_PERSON = {"other_person", "other_email"}
 
 
 def load_policy_config(path: Path = ROOT / "config" / "policy.yaml") -> dict:
@@ -76,27 +81,55 @@ def _clarify(rule, points, note=""):
     return _d(rule, D.CLARIFY, points, note=note)
 
 
-def _escalate(rule, reason, note, points=None):
+def _escalate(rule, reason, note, points=None, alert=""):
     # The customer never sees the reason. Telling an attacker "flagged as RISK" helps them.
-    return _d(rule, D.ESCALATED, points or [TEAM_REPLY], reason=reason, note=note)
+    d = _d(rule, D.ESCALATED, points or [TEAM_REPLY], reason=reason, note=note)
+    return d.model_copy(update={"alert": alert}) if alert else d
 
 
 # ---------- the decision ----------
 
 def decide(p: PolicyInput, c: dict) -> Decision:
+    """Ask first, act only when it is safe, and hand over to a person when asking stops helping."""
+    d = _decide(p, c)
+    if "model_flagged" in p.risk_flags and d.disposition != D.ESCALATED:
+        # The model's own "suspicious" flag is a hint, not proof. It blocks any action, but a plain answer
+        # (a final-sale "no", a tracking number on the customer's own order) still goes out, with an alert.
+        if d.actions or d.approval_actions:
+            return _escalate("G3", R.RISK, "the model flagged the message and the answer would act on it")
+        d = d.model_copy(update={"alert": d.alert or "model flagged the message; policy answered, nothing was done"})
+    if d.disposition == D.CLARIFY and p.prior_agent_replies >= c["MAX_CLARIFY_TURNS"]:
+        return _escalate("G8", R.LOW_CONFIDENCE, f"still unclear after {p.prior_agent_replies} replies from us",
+                         alert=d.alert)
+    return d
+
+
+def _decide(p: PolicyInput, c: dict) -> Decision:
     e = p.extraction
     # Global rules first. The safest checks come first.
+    if p.wants_human:
+        flags = f"; risk flags: {', '.join(p.risk_flags)}" if p.risk_flags else ""
+        return _escalate("G0", R.CUSTOMER_ASKED, "customer asked for a person" + flags)
     if not p.verified:
         return _clarify("G1", ["To help with an order, please reply with your order number and the email "
                                "address you used to place it."], "identity not verified")
-    if p.risk_flags:
+    hard = [f for f in p.risk_flags if f not in SOFT_FLAGS]
+    if hard:
         return _escalate("G3", R.RISK, "risk flags: " + ", ".join(p.risk_flags))
     if p.data_error:  # checked before "model output invalid", so a provider outage is DATA_GAP, not LOW_CONFIDENCE
         return _escalate("G4", R.DATA_GAP, f"system error: {p.data_error}")
     if e is None:
         return _escalate("G5", R.LOW_CONFIDENCE, "model output invalid twice")
+    if set(p.risk_flags) & OTHER_PERSON:
+        # Asking about someone else's order or account. Scoped tools could not show it anyway; the reply says
+        # plainly what we can do, and asks for an order on the customer's own account.
+        d = _clarify("G9", ["We can only share details of orders on your own account.",
+                            "If this is about one of your orders, please send the order number."],
+                     "asked about another person's order or account")
+        return d.model_copy(update={"alert": "asked about another person's order or account"})
     if e.confidence < c["MIN_CONFIDENCE"]:
-        return _escalate("G5", R.LOW_CONFIDENCE, f"confidence {e.confidence:.2f}")
+        return _clarify("G5", ["Sorry, we are not sure what you need yet. Could you tell us a bit more? If it is "
+                               "about an order, please include the order number."], f"confidence {e.confidence:.2f}")
     money_intents = {I.REFUND_STATUS, I.CANCEL, I.DAMAGED_WRONG_ITEM}
     if e.intent == I.ADDRESS_CHANGE and (e.wants_refund or set(e.other_intents) & money_intents):
         return _escalate("A3", R.RISK, "address change asked together with money")
@@ -115,8 +148,7 @@ def decide(p: PolicyInput, c: dict) -> Decision:
             ref = f" {e.order_id}" if e.order_id else ""
             return _clarify("G2", [f"We could not find order{ref} on your account. Please check the order "
                                    "number and send it again."], "order not found on this account")
-        return _clarify("G7", ["Which order is this about? Please reply with the order number. It starts "
-                               "with the letter O."], "no order reference")
+        return _clarify("G7", [ASK_ORDER], "no order reference")
     handler = {I.WISMO: _wismo, I.CANCEL: _cancel, I.RETURN_EXCHANGE: _return,
                I.DAMAGED_WRONG_ITEM: _damaged, I.ADDRESS_CHANGE: _address}[e.intent]
     return handler(p, c, o)
@@ -151,9 +183,14 @@ def _wismo(p, c, o):
                                           "The new tracking number will be sent in this chat within 1 "
                                           "business day."],
                   cls="reship_within_cap", actions=[search, reship])
-    return _d("W6", D.PENDING_APPROVAL, [f"We have opened a search with the courier for order {oid}.", TEAM_REPLY],
+    return _d("W6", D.PENDING_APPROVAL, [f"We have opened a search with the courier for order {oid}.",
+                                         "A replacement parcel needs a quick check by our team first. We will "
+                                         "reply within 1 business day."],
               cls="reship_over_cap", actions=[search], approvals=[reship],
-              note="reship above cap or earlier lost-parcel claim")
+              note="; ".join(w for w in (f"reship {money(o['total'])} is above the {money(c['AUTO_REFUND_CAP'])} cap"
+                                         if o["total"] > c["AUTO_REFUND_CAP"] else "",
+                                         f"{p.lost_claims_180d} earlier lost-parcel claim(s) in 180 days"
+                                         if p.lost_claims_180d else "") if w))
 
 
 def _cancel(p, c, o):
@@ -244,17 +281,21 @@ def _damaged(p, c, o):
     else:
         fix = Action(name="issue_refund", order_id=oid, line_no=line["line_no"], amount=value)
     sorry = f"Sorry about the {line['name']}."
+    # A wrong item is new stock we can sell again, so it comes back on a free label. A damaged pair does not.
+    wrong = claim == "wrong_item"
+    back = ([Action(name="create_return_label", order_id=oid, line_no=line["line_no"])] if wrong else [])
+    keep = ("Please send the wrong pair back with the free return label below. You do not need to wait: the "
+            "right pair ships now." if wrong else "You do not need to send the old pair back.")
     if value <= c["PHOTO_REQUIRED_ABOVE"] and value <= c["AUTO_REFUND_CAP"]:
         if in_stock:
             return _d("D1", D.AUTO_RESOLVED, [sorry, f"We are sending you a replacement pair in size "
-                                                     f"{line['size']} at no cost.",
-                                              "You do not need to send the old pair back."],
-                      cls="replacement_within_cap", actions=[fix])
+                                                     f"{line['size']} at no cost.", keep],
+                      cls="replacement_within_cap", actions=[fix] + back)
         return _d("D2", D.AUTO_RESOLVED, [sorry, f"That size is out of stock, so we have refunded {money(value)} "
                                                  f"to your original payment method ({o['payment_method']}).",
                                           "Refunds take 5 to 10 business days to show.",
-                                          "You do not need to send the old pair back."],
-                  cls="refund_within_cap", actions=[fix])
+                                          keep.replace(" You do not need to wait: the right pair ships now.", "")],
+                  cls="refund_within_cap", actions=[fix] + back)
     if not p.photo_attached:
         return _clarify("D3", [sorry, "Please reply with a clear photo of the problem so our team can check it.",
                                "Once we have the photo, a team member will reply within 1 business day."])
@@ -266,6 +307,8 @@ def _damaged(p, c, o):
 
 def _refund_status(p, c):
     e = p.extraction
+    if not e.order_id:  # policy owner's call: ask which order rather than guess, even for one refund on file
+        return _clarify("G7", [ASK_ORDER], "no order reference")
     refunds = [r for r in p.refunds if not e.order_id or r["order_id"] == e.order_id]
     if not refunds:
         ref = f" for order {e.order_id}" if e.order_id else ""
@@ -297,10 +340,19 @@ def _address(p, c, o):
         return _info("A0", [f"Order {oid} was cancelled, so there is no delivery to change."])
     country = (e.new_country or "SG").strip().upper()
     postal = (e.new_postal_code or "").strip()
-    if country not in ("SG", "SINGAPORE") or (postal and not re.fullmatch(r"\d{6}", postal)):
-        return _escalate("A4", R.RISK, "delivery address outside Singapore")
-    if not e.new_address or not postal:
+    if country not in ("SG", "SINGAPORE"):
+        d = _clarify("A4", [f"We only deliver within Singapore, so we cannot send order {oid} to an address "
+                            "outside Singapore.",
+                            "If you would like a different Singapore address, please send it with the 6-digit "
+                            "postal code."], "delivery address outside Singapore")
+        return d.model_copy(update={"alert": "asked to send an order outside Singapore"})
+    if not e.new_address or not re.fullmatch(r"\d{6}", postal):
         return _clarify("A5", ["Please send the full new address, including the 6-digit postal code."])
+    address = e.new_address.strip().rstrip(".,")
+    if "singapore" not in address.lower():
+        address += ", Singapore"
+    if postal not in address:
+        address += f" {postal}"
     act = Action(name="update_address", order_id=oid, args={"address": e.new_address, "postal_code": postal})
-    return _d("A1", D.AUTO_RESOLVED, [f"The delivery address for order {oid} is now: {e.new_address}."],
+    return _d("A1", D.AUTO_RESOLVED, [f"The delivery address for order {oid} is now: {address}."],
               cls="address_update", actions=[act])

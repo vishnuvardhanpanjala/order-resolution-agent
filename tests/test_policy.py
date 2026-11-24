@@ -64,9 +64,48 @@ def test_g5_invalid_model_output_escalates():
     assert (d.disposition, d.reason) == (D.ESCALATED, R.LOW_CONFIDENCE)
 
 
-def test_g5_low_confidence_escalates():
+def test_g5_low_confidence_asks_first():
+    # Changed after error analysis (decision #38): "hello??" deserves a question before a person is pulled in.
     d = run(ext(I.WISMO, confidence=0.5))
-    assert (d.disposition, d.reason, d.rule_id) == (D.ESCALATED, R.LOW_CONFIDENCE, "G5")
+    assert (d.disposition, d.rule_id) == (D.CLARIFY, "G5") and not d.actions
+
+
+def test_g8_still_unclear_after_two_of_our_replies_goes_to_a_person():
+    d = run(ext(I.WISMO, confidence=0.5), prior_agent_replies=2)
+    assert (d.disposition, d.reason, d.rule_id) == (D.ESCALATED, R.LOW_CONFIDENCE, "G8")
+
+
+def test_g8_does_not_touch_a_clear_answer_late_in_a_thread():
+    d = run(ext(I.WISMO), o=order(status="shipped"), prior_agent_replies=3)
+    assert (d.rule_id, d.disposition) == ("W2", D.AUTO_RESOLVED)
+
+
+def test_g0_customer_asking_for_a_person_gets_one_even_unverified():
+    for verified in (True, False):
+        d = run(ext(I.WISMO), verified=verified, wants_human=True)
+        assert (d.disposition, d.reason, d.rule_id) == (D.ESCALATED, R.CUSTOMER_ASKED, "G0") and not d.actions
+
+
+def test_g9_asking_about_another_person_asks_for_own_order_and_alerts():
+    d = run(ext(I.OTHER, order_id=None), o=None, risk_flags=["other_person", "other_email"])
+    assert (d.disposition, d.rule_id) == (D.CLARIFY, "G9") and not d.actions and d.alert
+    assert not any("O1001" in p for p in d.reply_points)
+
+
+def test_model_flag_alone_lets_a_plain_answer_out_with_an_alert():
+    o = order(lines=[line(final_sale=True)])
+    d = run(ext(I.RETURN_EXCHANGE, suspicious=True), o=o, risk_flags=["model_flagged"])
+    assert (d.rule_id, d.disposition) == ("R3", D.AUTO_RESOLVED) and d.alert and not d.actions
+
+
+def test_model_flag_alone_still_blocks_any_action():
+    d = run(ext(I.CANCEL, suspicious=True), o=order(status="placed"), risk_flags=["model_flagged"])
+    assert (d.rule_id, d.reason) == ("G3", R.RISK) and not d.actions and not d.approval_actions
+
+
+def test_an_unknown_risk_flag_escalates_by_default():
+    d = run(ext(I.WISMO), o=order(status="shipped"), risk_flags=["some_new_flag"])
+    assert (d.rule_id, d.reason) == ("G3", R.RISK)
 
 
 def test_g3_risk_flag_beats_a_valid_cancel():
@@ -131,6 +170,11 @@ def test_w6_not_received_high_value_needs_approval_for_reship():
     assert d.disposition == D.PENDING_APPROVAL and d.rule_id == "W6"
     assert names(d.actions) == ["open_carrier_investigation"]
     assert names(d.approval_actions) == ["create_reship"]
+
+
+def test_w6_reply_says_what_is_waiting():
+    d = run(ext(I.WISMO, delivered_not_received=True), o=order(days=4, lines=[line(price=149.0)]))
+    assert d.rule_id == "W6" and any("needs a quick check" in p for p in d.reply_points)
 
 
 def test_w6_repeat_lost_parcel_claimer_needs_approval():
@@ -208,6 +252,13 @@ def test_d1_low_value_in_stock_replaced_without_photo():
     assert names(d.actions) == ["create_replacement"]
 
 
+def test_d1_wrong_item_comes_back_on_a_free_label_damaged_does_not():
+    wrong = run(ext(I.DAMAGED_WRONG_ITEM, claim_type="wrong_item"))
+    assert names(wrong.actions) == ["create_replacement", "create_return_label"]
+    damaged = run(ext(I.DAMAGED_WRONG_ITEM, claim_type="damaged"))
+    assert names(damaged.actions) == ["create_replacement"]
+
+
 def test_d2_low_value_out_of_stock_refunds_paid_minus_prior_refunds():
     o = order(lines=[line(price=59, size="43", refunded=10)], refunded_total=10)
     d = run(ext(I.DAMAGED_WRONG_ITEM, claim_type="damaged"), o=o)
@@ -262,6 +313,12 @@ def test_f2_refund_late_past_10_business_days_escalates():
     assert (d.rule_id, d.reason) == ("F2", R.JUDGEMENT)
 
 
+def test_refund_status_without_an_order_number_asks_which_order():
+    # Policy owner's call after error analysis (decision #39): ask, don't guess, even with one refund on file.
+    d = run(ext(I.REFUND_STATUS, order_id=None), refunds=[_refund(3)])
+    assert (d.rule_id, d.disposition) == ("G7", D.CLARIFY)
+
+
 def test_f3_no_refund_found():
     d = run(ext(I.REFUND_STATUS), refunds=[_refund(3, order_id="O1002")])
     assert d.rule_id == "F3"
@@ -281,11 +338,26 @@ def test_a2_after_dispatch_cannot_change():
     assert run(e, o=order(status="shipped")).rule_id == "A2"
 
 
-def test_a4_overseas_address_is_risk():
+def test_a4_overseas_address_explains_and_alerts():
+    # Changed after error analysis (decision #38): say what we can do, alert the risk team, change nothing.
     e = ext(I.ADDRESS_CHANGE, new_address="12 Jalan Ampang, Kuala Lumpur", new_postal_code="50450",
             new_country="MY")
     d = run(e, o=order(status="placed"))
-    assert (d.rule_id, d.reason) == ("A4", R.RISK) and not d.actions
+    assert (d.rule_id, d.disposition) == ("A4", D.CLARIFY) and d.alert and not d.actions
+    assert any("only deliver within Singapore" in p for p in d.reply_points)
+
+
+def test_a1_reply_shows_the_postal_code():
+    e = ext(I.ADDRESS_CHANGE, new_address="21 Tampines Ave 3, #05-12, Singapore", new_postal_code="529705",
+            new_country="SG")
+    d = run(e, o=order(status="placed"))
+    assert d.rule_id == "A1" and any("529705" in p for p in d.reply_points)
+    assert d.actions[0].args == {"address": "21 Tampines Ave 3, #05-12, Singapore", "postal_code": "529705"}
+
+
+def test_a5_bad_postal_code_asks_again():
+    e = ext(I.ADDRESS_CHANGE, new_address="5 Jurong West St 41", new_postal_code="6494", new_country="SG")
+    assert run(e, o=order(status="placed")).rule_id == "A5"
 
 
 def test_a3_address_change_plus_refund_is_risk():
@@ -327,7 +399,7 @@ def _random_case(rng):
             delivered_not_received=rng.random() < 0.5, wants_refund=rng.random() < 0.3,
             other_intents=rng.choice([[], [], [I.CANCEL]]),
             new_address=rng.choice([None, "1 Test Rd"]), new_postal_code=rng.choice([None, "123456", "50450"]))
-    flags = rng.choice([[], [], [], ["injection"]])
+    flags = rng.choice([[], [], [], ["injection"], ["model_flagged"], ["other_person"], ["model_flagged", "other_email"]])
     return o, e, flags, rng.choice([0, 1, 3]), rng.random() < 0.5
 
 
@@ -335,7 +407,8 @@ def test_invariants_hold_for_500_random_inputs():
     rng = random.Random(42)
     for _ in range(500):
         o, e, flags, r90, photo = _random_case(rng)
-        d = run(e, o=o, risk_flags=flags, refunds_90d=r90, photo_attached=photo)
+        d = run(e, o=o, risk_flags=flags, refunds_90d=r90, photo_attached=photo,
+                prior_agent_replies=rng.choice([0, 0, 1, 2]), wants_human=rng.random() < 0.1)
         refundable = round(o["lines"][0]["paid_price"] - o["lines"][0]["refunded"], 2)
         for a in d.actions + d.approval_actions:
             if a.name == "issue_refund" and a.args.get("reason") != "cancel_before_dispatch":

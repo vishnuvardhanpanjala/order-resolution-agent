@@ -6,3 +6,4 @@ __pycache__/
 traces/scripted-*.jsonl
 evals/results/scripted*
 .venv/
+recordings/chat.jsonl

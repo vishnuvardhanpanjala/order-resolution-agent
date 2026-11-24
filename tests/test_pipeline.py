@@ -145,3 +145,78 @@ def test_every_python_file_compiles():
     root = Path(__file__).resolve().parent.parent
     for f in [*root.glob("app/*.py"), *root.glob("evals/*.py"), *root.glob("data/*.py")]:
         py_compile.compile(str(f), doraise=True)
+
+
+def test_the_same_in_policy_action_scores_the_same_for_ours_and_the_baseline():
+    # Both systems sent a S$69 replacement to the customer's own address on an attack ticket. The baseline used to
+    # be scored "harmful" for it and ours "changed", which flattered our system.
+    from evals.run_evals import identifier_index, score_baseline, score_ours
+    from data.seed import load_tickets, seeded_store
+    t = next(x for x in load_tickets() if x["ticket_id"] == "T050")
+    idx, seed = identifier_index(seeded_store()), seeded_store()
+    replacement = {"name": "create_replacement", "order_id": "O1050", "line_no": 1, "amount": 69.0, "status": "done"}
+    reply = "Sorry about the Daily Sneaker. We are sending you a replacement pair in size 41 at no cost."
+    ours = score_ours(t, {"customer_id": "C050", "reply": reply, "actions": [replacement], "extraction": {},
+                          "tool_calls": [], "steps": [], "disposition": "AUTO_RESOLVED", "rule_id": "D1",
+                          "reason_code": None, "reply_held": False, "latency_ms": 0, "cost_usd": 0,
+                          "tokens_in": 0, "tokens_out": 0}, seed, idx)
+    base = score_baseline(t, {"customer_id": "C050", "reply": reply, "would_do": ["create_replacement"],
+                              "amount": None, "action": "replacement", "disposition": "AUTO_RESOLVED"}, idx)
+    assert (ours["harmful"], ours["changed"]) == (base["harmful"], base["changed"]) == (False, True)
+
+
+class Reads(ScriptedLLM):
+    """A model that reads the message exactly as told, to test the code path behind a given reading."""
+    def __init__(self, **extraction):
+        super().__init__()
+        self.extraction = extraction
+
+    def complete(self, step, messages, json_mode=False):
+        if step == "classify":
+            return json.dumps({"confidence": 0.95, **self.extraction}), {"model": "fixed"}
+        return super().complete(step, messages, json_mode)
+
+
+def test_wrong_item_ships_the_right_pair_and_sends_a_return_label():
+    tr = run("T014", llm=Reads(intent="DAMAGED_WRONG_ITEM", order_id="O1014", claim_type="wrong_item"))
+    assert names(tr, "done") == ["create_replacement", "create_return_label"]
+    assert "pebblewalk.example/returns/" in tr["reply"] and "send the wrong pair back" in tr["reply"]
+
+
+def test_order_number_in_the_text_is_used_when_the_model_misses_it():
+    tr = run("T011", llm=Reads(intent="RETURN_EXCHANGE", order_id=None, item_hint="sneakers"))
+    assert tr["order_from_text"] and tr["rule_id"] == "R4"
+
+
+@pytest.mark.parametrize("tid,rule,disp", [("T061", "G8", "ESCALATED"), ("T062", "G0", "ESCALATED"),
+                                           ("T063", "W2", "AUTO_RESOLVED")])
+def test_threads_and_asking_for_a_person(tid, rule, disp):
+    tr = run(tid)
+    assert (tr["rule_id"], tr["disposition"]) == (rule, disp)
+
+
+@pytest.mark.parametrize("tid", ["T043", "T058"])
+def test_risky_but_answerable_cases_answer_and_alert_quietly(tid):
+    tr = run(tid)
+    assert tr["disposition"] == "CLARIFY" and not tr["actions"]
+    assert any(a["source"] == "policy" for a in tr["security_alerts"])
+    assert not any(m.lower() in tr["reply"].lower() for m in TICKETS[tid]["expected"]["must_not_mention"])
+
+
+def test_chat_mode_keeps_the_thread_and_hands_over_after_two_questions(monkeypatch, capsys):
+    from app import chat
+    said = iter(["hello??", "my order hasnt come", "the shoes lah", "/quit"])
+    monkeypatch.setattr("builtins.input", lambda _: next(said))
+    assert chat.main(["--customer", "C044", "--mode", "scripted"]) == 0
+    out = capsys.readouterr().out
+    assert out.count("rule G5 -> CLARIFY") >= 1 and "rule G8 -> ESCALATED" in out
+
+
+def test_label_sheet_says_not_shipped_in_words_and_never_prints_delivered_dash():
+    # The first sheet printed "placed, delivered -", which reads as "delivered". 5 labels went wrong on it.
+    from evals.export_labels import facts
+    from data.seed import seeded_store
+    store = seeded_store()
+    text = facts(store, {"customer_id": "C004", "identity": "session", "extraction": {"order_id": "O1004"},
+                         "security_alerts": []}, TICKETS["T004"])
+    assert "placed, not shipped yet" in text and "delivered -" not in text and "Today in this test" in text

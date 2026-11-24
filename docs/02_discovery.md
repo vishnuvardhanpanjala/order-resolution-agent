@@ -18,7 +18,8 @@ Automating a bad process just makes the bad process faster. So first, cut.
 
 | Step | Change | Why |
 |---|---|---|
-| 2, 3 | **Removed** on logged-in channels | The chat already knows who the customer is. If they have one order in the last 60 days, use it. Only ask when it is unclear. |
+| 2 | **Kept, but asked once and only when needed** | The chat already knows who the customer is, so no email or account check. The first version also skipped asking for the order number when the customer had one order in the last 60 days. The policy owner reversed that after the first round of labels: answering about a guessed order felt wrong to the person reviewing, and asking costs one short message (decision #39). |
+| 3 | **Shortened** | The customer replies in the same chat, and the agent reads the whole conversation, so nothing they already said is asked again. |
 | 5, 6 | **Removed for items up to S$80** | For a S$59 sandal, the photo costs more in associate time and customer wait than the fraud it stops. Abuse is caught by a refund-velocity check instead (2 refunds in 90 days sends the claim to a person). Above S$80 the photo stays, and a person looks at it. |
 | 7 | **Replaced** by an API call | Looking up a delivery date by hand is pure lookup. Code does it exactly. |
 | 8 | **Narrowed** | Team lead OK is only needed above S$300. The agent alone can do up to S$80, an associate up to S$300. |

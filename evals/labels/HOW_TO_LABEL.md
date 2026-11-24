@@ -1,4 +1,4 @@
-# How to label (about 45 to 60 minutes)
+# How to label
 
 Open `to_label.csv` in a spreadsheet, with `docs/03_policy.md` next to it.
 

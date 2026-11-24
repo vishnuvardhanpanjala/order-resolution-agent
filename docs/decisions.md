@@ -112,3 +112,29 @@ This is the biggest weakness of the eval. Real customers will write things I did
 
 **31. Business days ignore public holidays.**
 Known gap. A refund sent before Deepavali would be escalated a day early. Easy fix with a holiday calendar.
+
+## Evals, second pass
+
+After Phase 4 I went back over the eval design before spending any real model calls on it. Most of it held. These are the changes, and the places where I knowingly went against common eval practice.
+
+**32. The judge writes its reason before its verdict.**
+It is still pass or fail. The reason comes first, so the verdict follows from it, and a wrong verdict can be traced to the reason that caused it.
+Cost: a few more output tokens per reply.
+
+**33. The judge is measured by what it catches, not by agreement.**
+Two numbers, with the base rate next to them: how many bad replies it fails, and how many good replies it passes. If 1 reply in 10 is bad, a judge that passes everything "agrees" with people 90% of the time and catches nothing. The report warns when fewer than 5 bad replies were labelled.
+Known limit: if the judge prompt is changed during error analysis, it will be checked on the same labels, so the numbers will look better than they are. 40 labels leave no room to hold some back. The report will say so. For the same reason, no labelled examples go into the judge prompt.
+
+**34. One general judge, built before any error analysis.**
+The usual practice is to build judges only for failure types found in the data, one judge per failure. I didn't, because the judge here also guards every reply before it is sent, so it had to exist from day one.
+Cost: it may be checking the wrong things. Error analysis decides from the labels whether to narrow it or split it. There are no generic "helpfulness" or "toxicity" scores anywhere.
+
+**35. 40 labelled traces, not 100.**
+A common target is 100. The real rule is to stop when new traces stop showing new kinds of problems. 40 fits a one-day build. The labelling guide says to keep going if the last 10 rows still show something new, and the export adds rows without touching labels already written.
+
+**36. Test tickets cover set dimensions, including how people write.**
+The dimensions are intent, order state, money band (up to S$80 or above), attack type, and customer voice: plain, Singlish, terse, typos, all caps, angry, long story. A review found the 30 "normal" tickets were mostly tidy English, which hides exactly the failures a classifier makes. I reworded 11 of them into styles Singapore customers really use, for example "O1003 when reach ah". The meaning and expected outcomes didn't change. Hero tickets and tickets used by tests were left alone. Thinking in dimensions gives more varied inputs than asking for "some customer messages".
+Cost: still written by one person (#30). The keyword stand-in model now misreads more of them, which is the point.
+
+**37. The eval set grows from failures found, not from guesses up front.**
+The 60 tickets check the policy and the gates, which are plain code and don't change often. Checks on model behaviour get added only after error analysis finds a failure, each one as a regression test. If the fix is simple (a missing fact in a prompt), fix it and add a cheap code test. Use a judge only where code can't decide. Writing hundreds of model checks before the prompts settle would mostly test guesses.

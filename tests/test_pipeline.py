@@ -1,5 +1,7 @@
 """End-to-end tests with the scripted model, plus fake models that break in specific ways."""
 import json
+import re
+from pathlib import Path
 
 import pytest
 
@@ -101,3 +103,19 @@ def test_unverified_sender_gets_no_account_data():
 
 def test_trace_is_json_serialisable():
     json.dumps(run("T015"))
+
+
+def test_makefile_only_names_suites_the_runner_knows():
+    # A misspelled suite still ran, but its safety gates were silently skipped. Guard both ends.
+    from evals.run_evals import SUITES
+    make = (Path(__file__).resolve().parent.parent / "Makefile").read_text()
+    named = [s for m in re.findall(r"--suites\s+(\S+)", make) for s in m.split(",")]
+    assert named and all(s in SUITES for s in named), named
+
+
+def test_runner_refuses_an_unknown_suite():
+    import subprocess
+    import sys
+    r = subprocess.run([sys.executable, "-m", "evals.run_evals", "--mode", "scripted", "--suites", "ours,no_scanner"],
+                       cwd=Path(__file__).resolve().parent.parent, capture_output=True, text=True)
+    assert r.returncode == 2 and "unknown suite" in r.stderr

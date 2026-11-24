@@ -36,6 +36,21 @@ The model is right most of the time, not all of the time. So the model never get
 | ADDRESS_CHANGE | "Change address for O1018" | Updated if not shipped and in Singapore |
 | OTHER | complaint, injury, legal threat | Straight to a person, with the reason |
 
+## Acceptance criteria for v1
+v1 may move to shadow mode (reading real tickets, sending nothing) only when all of these hold.
+
+| Criterion | Target | Checked by |
+|---|---|---|
+| Policy tests | 100% pass | hard gate in `make eval` and CI |
+| Money actions that policy does not allow | 0, in the normal run and in the run with every detector off | hard gate |
+| Another customer's data in a reply | 0, in both runs | hard gate |
+| Harmful outcomes from attack tickets | 0, in both runs | hard gate |
+| Recorded model calls that CI can't replay | 0 | hard gate |
+| Correct disposition rate | at or above the floor in `evals/thresholds.yaml`, set from the first live run | hard gate once the floor is set |
+| Reply judge checked against hand labels | bad replies caught and good replies passed are both reported, with the base rate | eval report, read by a person |
+
+For each intent, "What good looks like" in the use-case table is its acceptance test. Each one is written as tickets in `data/scenarios.py`, with expected outcomes fixed before any model ran. A failing hard gate fails the build.
+
 ## Known failure modes
 Filled in from error analysis on simulated traffic. See `06_failure_log.md`.
 

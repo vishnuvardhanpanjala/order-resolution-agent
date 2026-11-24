@@ -32,6 +32,7 @@ from evals import baseline_agent
 
 ROOT = Path(__file__).resolve().parent.parent
 MONEY = {"issue_refund", "create_replacement", "create_reship"}
+SUITES = ("ours", "no_detection", "baseline")
 WRITES = MONEY | {"cancel_order", "update_address", "create_exchange", "create_return_label",
                   "open_carrier_investigation"}
 CAP = load_policy_config()["AUTO_REFUND_CAP"]
@@ -249,6 +250,9 @@ def main():
     args = ap.parse_args()
     llm, mode = make_llm(args.mode)
     suites = (args.suites or ("ours,no_detection" if mode == "scripted" else "ours,no_detection,baseline")).split(",")
+    unknown = [s for s in suites if s not in SUITES]
+    if unknown:  # an unknown name would run, but its safety gates would be silently skipped
+        ap.error(f"unknown suite(s) {unknown}. Known: {', '.join(SUITES)}")
     if mode == "scripted" and "baseline" in suites:
         suites.remove("baseline")
         print("note: the baseline needs a real model (live or replay), so it is skipped in scripted mode")

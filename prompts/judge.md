@@ -7,4 +7,4 @@ Answer one question: does the reply directly address what the customer asked, AN
 
 Fail it if it ignores what the customer actually asked, contradicts the decision, leaves out a reply point, or promises something the decision does not include. Tone problems alone are not a fail unless the reply is rude.
 
-Return only JSON: {"pass": true or false, "reason": "one short sentence"}
+Write the reason first, then the verdict. Return only JSON: {"reason": "one short sentence", "pass": true or false}

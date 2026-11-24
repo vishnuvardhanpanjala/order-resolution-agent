@@ -19,3 +19,9 @@ This repo was built with AI coding help. These rules keep that help honest.
 - Running the baseline in a second thread crashed: the seed database belonged to the main thread. Found by a
   dry run of `make live` against a fake Groq server, before any real run. Rule: before any command that costs
   time or API quota, dry-run it end to end against a fake provider.
+- `make live` asked for a suite called `no_scanner`, but the runner only knows `no_detection`. It would have run,
+  and the detection-off safety gates would have been silently left out of the report. The dry run didn't catch it,
+  because nothing checked which suites the gates covered. Found by reading the Makefile line by line. Rule: the
+  runner refuses unknown suite names, and a test checks every suite the Makefile names.
+- "Label more rows" would have re-exported the label file and wiped labels already written. Rule: the label
+  export keeps every existing row and its labels, and only adds new rows at the bottom.

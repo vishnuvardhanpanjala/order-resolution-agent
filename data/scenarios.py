@@ -43,10 +43,10 @@ O("O1001", "C001", "shipped", days=3)
 T("T001", "C001", "Hi, where is my order O1001? It's been a few days.", "WISMO", "AUTO_RESOLVED",
   order="O1001", mention=["SG10010001"], avoid=["refund"])
 O("O1002", "C002", "placed", lines=[L("PW-SLD", "40")])
-T("T002", "C002", "Hello, has my order O1002 been sent out yet?", "WISMO", "AUTO_RESOLVED", order="O1002",
-  mention=["O1002"])
+T("T002", "C002", "hello, my order O1002 sent out already or not?", "WISMO", "AUTO_RESOLVED", order="O1002",
+  mention=["O1002"], tags=("normal", "singlish"))
 O("O1003", "C003", "packed", lines=[L("PW-RUN", "42")])
-T("T003", "C003", "When will O1003 arrive?", "WISMO", "AUTO_RESOLVED", order="O1003")
+T("T003", "C003", "O1003 when reach ah", "WISMO", "AUTO_RESOLVED", order="O1003", tags=("normal", "singlish", "terse"))
 O("O1004", "C004", "placed", days=0, lines=[L("PW-RUN", "42")])
 T("T004", "C004", "Please cancel order O1004, I ordered it by mistake.", "CANCEL", "AUTO_RESOLVED",
   CANCEL_REFUND, order="O1004", refund=129.0, mention=["129"])
@@ -54,32 +54,34 @@ O("O1005", "C005", "packed", lines=[L("PW-SNK", "39"), L("PW-KID", "30")])
 T("T005", "C005", "cancel O1005 pls, found them cheaper elsewhere", "CANCEL", "AUTO_RESOLVED", CANCEL_REFUND,
   order="O1005", refund=114.0, mention=["114"])
 O("O1006", "C006", "shipped", days=2)
-T("T006", "C006", "I want to cancel my order O1006.", "CANCEL", "AUTO_RESOLVED", order="O1006",
-  mention=["return"], avoid=["is cancelled", "has been cancelled"])
+T("T006", "C006", "pls cancel O1006 asap dont want it anymore", "CANCEL", "AUTO_RESOLVED", order="O1006",
+  mention=["return"], avoid=["is cancelled", "has been cancelled"], tags=("normal", "typos"))
 O("O1007", "C007", "delivered", days=5, lines=[L("PW-RUN", "42")])
 T("T007", "C007", "The Cloudstep Runners from O1007 are a bit tight. Can I exchange them for size 44? Only "
   "tried them on at home.", "RETURN_EXCHANGE", "AUTO_RESOLVED", ["create_exchange"], order="O1007", mention=["44"])
 O("O1008", "C008", "delivered", days=10, lines=[L("PW-RUN", "42")])
-T("T008", "C008", "Can I swap my runners (O1008) for a size 43? They're unworn.", "RETURN_EXCHANGE",
-  "AUTO_RESOLVED", ["create_return_label"], order="O1008", mention=["43"])
+T("T008", "C008", "can swap my runners O1008 to size 43? havent wear them, still in the box", "RETURN_EXCHANGE",
+  "AUTO_RESOLVED", ["create_return_label"], order="O1008", mention=["43"], tags=("normal", "singlish"))
 O("O1009", "C009", "delivered", days=7, lines=[L("PW-LOF", "41")])
 T("T009", "C009", "I don't really like the loafers from O1009. Can I return them? Haven't worn them outside.",
   "RETURN_EXCHANGE", "AUTO_RESOLVED", ["create_return_label"], order="O1009", mention=["149"])
 O("O1010", "C010", "delivered", days=3, lines=[L("PW-SAN", "37", price=35.0, final=True)])
-T("T010", "C010", "Can I return the sandals from O1010? They don't suit me.", "RETURN_EXCHANGE",
-  "AUTO_RESOLVED", order="O1010", mention=["final sale"])
+T("T010", "C010", "Hi! So I bought the Strap Sandals (O1010) to wear to my cousin's wedding, but in the end the colour "
+  "really doesn't go with my dress, and to be honest the style isn't really me either. Is it possible to "
+  "return them? So sorry for the trouble and thank you!", "RETURN_EXCHANGE",
+  "AUTO_RESOLVED", order="O1010", mention=["final sale"], tags=("normal", "long_story"))
 O("O1011", "C011", "delivered", days=45, lines=[L("PW-SNK", "40")])
-T("T011", "C011", "I want to return my sneakers from O1011, they don't fit.", "RETURN_EXCHANGE",
-  "AUTO_RESOLVED", order="O1011", mention=["30 days"])
+T("T011", "C011", "Return sneakers O1011. Dont fit.", "RETURN_EXCHANGE",
+  "AUTO_RESOLVED", order="O1011", mention=["30 days"], tags=("normal", "terse"))
 O("O1012", "C012", "delivered", days=3)
-T("T012", "C012", "The sole on my Daily Sneakers (O1012) came unglued on the first day I wore them.",
-  "DAMAGED_WRONG_ITEM", "AUTO_RESOLVED", ["create_replacement"], order="O1012")
+T("T012", "C012", "wah the sole of my Daily Sneakers come off on the first day i wear them!! O1012. so disappointed",
+  "DAMAGED_WRONG_ITEM", "AUTO_RESOLVED", ["create_replacement"], order="O1012", tags=("normal", "singlish"))
 O("O1013", "C013", "delivered", days=4, lines=[L("PW-SAN", "38")])
 T("T013", "C013", "The strap on my sandals snapped after one walk. Order O1013.", "DAMAGED_WRONG_ITEM",
   "AUTO_RESOLVED", ["issue_refund"], order="O1013", refund=59.0, mention=["59"])
 O("O1014", "C014", "delivered", days=2, lines=[L("PW-SNK", "42")])
-T("T014", "C014", "I ordered size 42 in O1014 but the box has a size 39 inside.", "DAMAGED_WRONG_ITEM",
-  "AUTO_RESOLVED", ["create_replacement"], order="O1014")
+T("T014", "C014", "ordered size 42 for O1014 but inside the box is size 39 leh", "DAMAGED_WRONG_ITEM",
+  "AUTO_RESOLVED", ["create_replacement"], order="O1014", tags=("normal", "singlish"))
 O("O1015", "C015", "delivered", days=6, lines=[L("PW-BOT", "42")])
 T("T015", "C015", "My Trail Boots arrived with a torn seam. Photo attached. Order O1015.", "DAMAGED_WRONG_ITEM",
   "PENDING_APPROVAL", approvals=["create_replacement"], order="O1015", photo=True, avoid=["replacement is on"])
@@ -89,8 +91,8 @@ T("T016", "C016", "When will I get my refund for O1016?", "REFUND_STATUS", "AUTO
   mention=["69"])
 O("O1017", "C017", "delivered", days=20, lines=[L("PW-RUN", "41")])
 REFUNDS.append(("C017", "O1017", 1, 129.0, "settled", 15, 8))
-T("T017", "C017", "Did my refund for O1017 go through?", "REFUND_STATUS", "AUTO_RESOLVED", order="O1017",
-  mention=["129"])
+T("T017", "C017", "refund for O1017 done already?", "REFUND_STATUS", "AUTO_RESOLVED", order="O1017",
+  mention=["129"], tags=("normal", "singlish", "terse"))
 O("O1018", "C018", "placed", lines=[L("PW-LOF", "42")])
 T("T018", "C018", "Please change the delivery address for O1018 to 21 Tampines Ave 3, #05-12, Singapore 529705.",
   "ADDRESS_CHANGE", "AUTO_RESOLVED", ["update_address"], order="O1018", mention=["529705"])
@@ -98,10 +100,11 @@ O("O1019", "C019", "shipped", days=2, lines=[L("PW-SNK", "43")])
 T("T019", "C019", "Can I change the address for O1019? I'm moving to 5 Jurong West St 41, Singapore 649414.",
   "ADDRESS_CHANGE", "AUTO_RESOLVED", order="O1019", avoid=["has been updated", "is now"])
 O("O1020", "C020", "delivered", hours=24, lines=[L("PW-SLD", "39")])
-T("T020", "C020", "Has O1020 been delivered yet?", "WISMO", "AUTO_RESOLVED", order="O1020")
+T("T020", "C020", "HAS O1020 BEEN DELIVERED OR NOT?? NOBODY TELLING ME ANYTHING", "WISMO", "AUTO_RESOLVED",
+  order="O1020", tags=("normal", "all_caps"))
 O("O1021", "C021", "delivered", hours=20, lines=[L("PW-SNK", "38")])
-T("T021", "C021", "Tracking says O1021 was delivered but I don't have it.", "WISMO", "AUTO_RESOLVED",
-  order="O1021", mention=["48"])
+T("T021", "C021", "tracking says O1021 delivered but i dont have it???", "WISMO", "AUTO_RESOLVED",
+  order="O1021", mention=["48"], tags=("normal", "typos"))
 O("O1022", "C022", "delivered", days=4, lines=[L("PW-SNK", "44")])
 T("T022", "C022", "O1022 says delivered on Monday but nothing came. Still nothing today.", "WISMO",
   "AUTO_RESOLVED", [SEARCH, RESHIP], order="O1022")

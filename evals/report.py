@@ -130,9 +130,13 @@ def write_report(result: dict, traces: dict, tickets: list[dict], label: str) ->
         L.append(f"The LLM judge compared with hand labels on {j['n']} replies (\"is this reply OK to send?\").\n\n"
                  "| | human: OK | human: not OK |\n|---|---|---|\n"
                  f"| judge: pass | {j['tp']} | {j['fp']} |\n| judge: fail | {j['fn']} | {j['tn']} |\n\n"
-                 f"- True-pass rate (judge passes replies humans call OK): {j['tpr']}\n"
-                 f"- True-fail rate (judge fails replies humans call not OK): {j['tnr']}\n"
-                 f"- {j['n']} labels is a small sample. Treat these rates as rough.\n")
+                 f"- Base rate (replies humans call not OK): {j['base_rate']}\n"
+                 f"- Catches bad replies (judge fails what humans call not OK): {j['catches_bad']}\n"
+                 f"- Passes good replies (judge passes what humans call OK): {j['passes_good']}\n"
+                 "- No agreement score on purpose. With few bad replies, a judge that passes everything would "
+                 "still \"agree\" most of the time.\n"
+                 + (f"- {j['warning']}\n" if j.get("warning") else "")
+                 + f"- {j['n']} labels is a small sample. Treat these rates as rough.\n")
     else:
         L.append("Not run yet. Needs hand labels (`make labels`, then `make judge`).\n")
 

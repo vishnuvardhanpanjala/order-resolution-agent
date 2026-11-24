@@ -39,17 +39,17 @@ Automating a bad process just makes the bad process faster. So first, cut.
 | 9 | Send, and log | Code | Only to the verified customer's own thread. |
 
 ## Which intents to build first
-Scored 1 (low) to 3 (high). Frequency is an assumption based on typical ecommerce ticket mixes. It has not been measured.
+Scored 1 (low) to 3 (high). Frequency is an assumption based on typical ecommerce ticket mixes. It has not been measured. Cost means cost to build and run: build effort, model calls, and the human review time the flow still needs. Also an estimate.
 
-| Intent | Freq (assumed) | Value | Feasibility | Risk | Decision |
-|---|---|---|---|---|---|
-| WISMO | 3 (~35%) | 3 | 3: pure lookup | 1 | Build first, full auto |
-| RETURN_EXCHANGE | 2 (~20%) | 3 | 2: stock and windows | 2 | Build, auto for first exchange |
-| DAMAGED_WRONG_ITEM | 2 (~12%) | 3 | 2 | 3: money | Build, auto only up to S$80 |
-| CANCEL | 2 (~10%) | 2 | 3 | 2: money, but goods never left | Build, auto before dispatch |
-| REFUND_STATUS | 2 (~10%) | 2 | 3 | 1 | Build, full auto |
-| ADDRESS_CHANGE | 1 (~5%) | 2 | 3 | 3: classic account-takeover step | Build narrowly: Singapore only, never combined with a refund |
-| OTHER | 1 (~8%) | low | 1 | 3 | Do not automate. Route to a person. |
+| Intent | Freq (assumed) | Impact | Feasibility | Risk | Cost | Decision |
+|---|---|---|---|---|---|---|
+| WISMO | 3 (~35%) | 3 | 3: pure lookup | 1 | 1: one lookup, one small-model call | Build first, full auto |
+| RETURN_EXCHANGE | 2 (~20%) | 3 | 2: stock and windows | 2 | 2: stock checks, labels, warehouse handling | Build, auto for first exchange |
+| DAMAGED_WRONG_ITEM | 2 (~12%) | 3 | 2 | 3: money | 2: replacement goods, and a person checks photos above S$80 | Build, auto only up to S$80 |
+| CANCEL | 2 (~10%) | 2 | 3 | 2: money, but goods never left | 1 | Build, auto before dispatch |
+| REFUND_STATUS | 2 (~10%) | 2 | 3 | 1 | 1 | Build, full auto |
+| ADDRESS_CHANGE | 1 (~5%) | 2 | 3 | 3: classic account-takeover step | 1 | Build narrowly: Singapore only, never combined with a refund |
+| OTHER | 1 (~8%) | 1 | 1 | 3 | 3: needs a knowledge base, and most cases still need a person | Do not automate. Route to a person. |
 
 ## What we chose not to automate
 - Complaints about staff, injury, legal or chargeback threats. These need a person who is accountable.

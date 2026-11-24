@@ -17,11 +17,12 @@ seed:          ## rebuilds data/tickets.jsonl from data/scenarios.py
 check-models:  ## pings each Groq model in config/models.yaml (needs GROQ_API_KEY)
 	$(PY) -m app.llm --check
 
-live:          ## full live run on Groq: ours, ours without the scanner, and the baseline (needs GROQ_API_KEY)
-	$(PY) -m evals.run_evals --mode live --suites ours,no_scanner,baseline
+live:          ## full live run on Groq: ours, ours with detection off, and the baseline (needs GROQ_API_KEY)
+	$(PY) -m evals.run_evals --mode live --suites ours,no_detection,baseline
 
-labels:        ## exports traces for hand labelling
-	$(PY) -m evals.export_labels
+N ?= 40
+labels:        ## exports N traces for hand labelling (default 40: make labels N=60 for more)
+	$(PY) -m evals.export_labels $(N)
 
-judge:         ## compares the LLM judge with your labels
+judge:         ## compares the LLM judge with the hand labels
 	$(PY) -m evals.judge_validation

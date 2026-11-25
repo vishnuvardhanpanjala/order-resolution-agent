@@ -282,3 +282,10 @@ def test_a_new_label_sheet_reuses_last_rounds_tickets_and_every_flagged_one():
     # Adding rows in the same round only adds new tickets on top.
     more = {t["ticket_id"] for t in choose(traces, flagged, ids, 60)}
     assert ids <= more and len(more) == 60
+
+
+def test_the_tickets_file_matches_the_scenarios():
+    # data/tickets.jsonl is built from data/scenarios.py by `python -m data.seed`. Round two's scenario edits
+    # were first shipped without rebuilding it, so the evals would have scored against old expected outcomes.
+    from data.seed import build_store, build_tickets
+    assert build_tickets(build_store()) == load_tickets()

@@ -1,7 +1,7 @@
 """Exports live-run traces for hand labelling: evals/labels/to_label.csv. Read HOW_TO_LABEL.md first.
 
-Picks every trace an automatic check flagged, then random others, up to 40 in all (or N: `make labels N=60`),
-in shuffled order. The labeller does not see the expected answer or the judge's verdict, so neither can bias
+Picks every trace an automatic check flagged, then the tickets on the last sheet, then random others, up to 40
+in all (or N: `make labels N=60`), in shuffled order. The labeller does not see the expected answer or the judge's verdict, so neither can bias
 the label.
 
 The sheet spells every fact out in words. The first version printed "placed, delivered -", which reads as
@@ -124,6 +124,20 @@ def carry_labels(old: list[dict], stale: list[dict]) -> dict[str, dict]:
     return carried
 
 
+def choose(traces: list[dict], flagged: list[dict], keep_ids: set[str], n: int, seed: int = 1) -> list[dict]:
+    """Every flagged trace, then the tickets on the last sheet, then random others, up to n, shuffled.
+
+    Re-using last round's tickets means unchanged rows keep their labels and the two rounds compare on the
+    same tickets. A flagged or re-used ticket is never dropped, so the sheet can run a little over n."""
+    rng = random.Random(seed)
+    first = flagged + [t for t in traces if t["ticket_id"] in keep_ids and t not in flagged]
+    rest = [t for t in traces if t not in first]
+    rng.shuffle(rest)
+    pick = first + rest[:max(0, n - len(first))]
+    rng.shuffle(pick)
+    return pick
+
+
 def main(n: int = 40):
     traces = [json.loads(l) for l in (ROOT / "traces" / "recorded-ours.jsonl").read_text(encoding="utf-8").splitlines() if l]
     by_id = {t["ticket_id"]: t for t in traces}
@@ -131,14 +145,9 @@ def main(n: int = 40):
     flagged = [t for t in traces if not (rows[t["ticket_id"]]["disp_ok"] and rows[t["ticket_id"]]["actions_ok"]
                                          and rows[t["ticket_id"]]["mention_ok"]) or t["reply_held"]
                or (t.get("judge") or {}).get("pass") is False]
-    rng = random.Random(1)
-    rest = [t for t in traces if t not in flagged]
-    rng.shuffle(rest)
-    pick = flagged + rest[:max(0, n - len(flagged))]
-    rng.shuffle(pick)
-
     old = list(csv.DictReader(OUT.open(encoding="utf-8-sig", newline=""))) if OUT.exists() else []
     stale = [r for r in old if r["ticket_id"] not in by_id or not _same(r, by_id[r["ticket_id"]])]
+    pick = choose(traces, flagged, {r["ticket_id"] for r in old}, n)
     carried = {}
     if stale:  # a sheet from an earlier run: keep it, start a fresh one, carry labels only where nothing changed
         k = 1

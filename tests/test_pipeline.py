@@ -270,3 +270,15 @@ def test_exchange_into_the_ordered_size_ships_the_right_pair_end_to_end():
     tr = run("T014", llm=Reads(intent="RETURN_EXCHANGE", order_id="O1014", target_size="42"))
     assert tr["rule_id"] == "D1" and names(tr, "done") == ["create_replacement", "create_return_label"]
     assert "size 42 for size 42" not in tr["reply"] and "size already ordered" in tr["decision"]["note"]
+
+
+def test_a_new_label_sheet_reuses_last_rounds_tickets_and_every_flagged_one():
+    from evals.export_labels import choose
+    traces = [{"ticket_id": f"T{i:03d}"} for i in range(1, 64)]
+    flagged = [traces[0], traces[5]]
+    last_round = {f"T{i:03d}" for i in range(20, 60)}  # 40 tickets labelled last round
+    ids = {t["ticket_id"] for t in choose(traces, flagged, last_round, 40)}
+    assert last_round <= ids and {"T001", "T006"} <= ids and len(ids) == 42
+    # Adding rows in the same round only adds new tickets on top.
+    more = {t["ticket_id"] for t in choose(traces, flagged, ids, 60)}
+    assert ids <= more and len(more) == 60

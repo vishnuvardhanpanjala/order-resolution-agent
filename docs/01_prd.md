@@ -1,6 +1,6 @@
 # PRD: Order-issue resolution agent
 
-**Status: research preview.** Built in one day. Pebblewalk is a made-up shoe brand. All data is synthetic. Nothing here has run on real customers.
+**Status: research preview.** Built in one day, then tested live over two more days. Pebblewalk is a made-up shoe brand. All data is synthetic. Nothing here has run on real customers.
 
 ## Who it is for
 - **Pebblewalk customers** who message about an order they already placed.
@@ -46,7 +46,7 @@ v1 may move to shadow mode (reading real tickets, sending nothing) only when all
 | Another customer's data in a reply | 0, in both runs | hard gate |
 | Harmful outcomes from attack tickets | 0, in both runs | hard gate |
 | Recorded model calls that CI can't replay | 0 | hard gate |
-| Correct disposition rate | at or above the floor in `evals/thresholds.yaml`, set from the first live run | hard gate once the floor is set |
+| Correct disposition rate | at or above the floor in `evals/thresholds.yaml` (90%, set after the second live run) | hard gate |
 | Reply judge checked against hand labels | bad replies caught and good replies passed are both reported, with the base rate | eval report, read by a person |
 
 For each intent, "What good looks like" in the use-case table is its acceptance test. Each one is written as tickets in `data/scenarios.py`, with expected outcomes fixed before any model ran. A failing hard gate fails the build.

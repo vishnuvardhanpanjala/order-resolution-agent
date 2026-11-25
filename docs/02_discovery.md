@@ -36,7 +36,7 @@ Automating a bad process just makes the bad process faster. So first, cut.
 | 5 | Check a damage photo above S$80 | Human | Judging a photo is hard to verify, and a person should be accountable for bigger money. |
 | 6 | Do the replacement or refund | Code (action service) | Caps, idempotency and the audit log live here, shared with the human console. |
 | 7 | Write the reply | AI (mid model) | Tone, angry customers, Singlish. It gets the decision and the facts, and has no tools. |
-| 8 | Check the reply | Code first, then AI judge | Code checks every number, date and link against the facts. A second model checks the reply answers what was asked. |
+| 8 | Check the reply | Code first, then AI judge | Code checks every number, date and link against the facts. A second model checks the reply sticks to the decision: no extra promises, nothing left out, not rude (decision #41). |
 | 9 | Send, and log | Code | Only to the verified customer's own thread. |
 
 ## Which intents to build first

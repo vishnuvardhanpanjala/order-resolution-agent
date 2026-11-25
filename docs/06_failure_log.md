@@ -102,6 +102,6 @@ I kept it on the send path anyway (#48). The code checks cannot see promises, om
 ## Still open
 
 - T044-style swings: a vague message can land either side of the 0.6 line between runs (#49).
-- Hand-over replies are written by the drafting model, but they are nearly fixed text. A template would save a draft call and a judge call on about a third of tickets.
+- Hand-over replies are written by the drafting model, but they are nearly fixed text. A template would save a draft call and a judge call on nearly 3 tickets in 10 (18 of 63 in round two).
 - The judge's catch rate on real bad replies. The seeded check is a floor. Weekly labelling after launch is the real test, with the switch-off rule in #48.
 - T013 (strap snapped, refunded because the size was out of stock), open after round one: marked OK in round two, so closed.

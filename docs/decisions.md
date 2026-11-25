@@ -1,6 +1,6 @@
 # Decision log
 
-Every judgement call in this build: the options, what was picked, why, and what it costs. Built in one day, with AI coding help.
+Every judgement call in this build: the options, what was picked, why, and what it costs. Built in one day with AI coding help, then tested live over two more days.
 
 ## Architecture
 

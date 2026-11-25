@@ -45,3 +45,7 @@ This repo was built with AI coding help. These rules keep that help honest.
 - The judge checked "no fact outside the decision" without being told the customer's name, so a correct
   greeting looked like an invented fact. Rule: when a checker flags something, first ask whether it was given
   everything the writer was given.
+- Round two's scenario edits changed four expected outcomes in `data/scenarios.py`, but `data/tickets.jsonl`,
+  which the evals read, was not rebuilt, so the live run scored those tickets against old answers. Caught
+  while writing the README, before any numbers were used. Rule: a test fails if the tickets file and the
+  scenarios differ.

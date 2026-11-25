@@ -220,3 +220,53 @@ def test_label_sheet_says_not_shipped_in_words_and_never_prints_delivered_dash()
     text = facts(store, {"customer_id": "C004", "identity": "session", "extraction": {"order_id": "O1004"},
                          "security_alerts": []}, TICKETS["T004"])
     assert "placed, not shipped yet" in text and "delivered -" not in text and "Today in this test" in text
+
+
+def test_label_carry_over_keeps_both_labels_only_where_nothing_changed():
+    from evals.export_labels import carry_labels
+    fixed = "Today in this test: Fri 20 Nov 2026"
+    same = {"ticket_id": "T1", "facts_the_system_saw": fixed, "ok_overall": "n", "reply_ok": "y"}
+    changed = {"ticket_id": "T2", "facts_the_system_saw": fixed, "ok_overall": "y", "reply_ok": "y"}
+    blank = {"ticket_id": "T3", "facts_the_system_saw": fixed, "ok_overall": "", "reply_ok": ""}
+    out = carry_labels([same, changed, blank], stale=[changed])
+    assert list(out) == ["T1"] and out["T1"]["ok_overall"] == "n" and out["T1"]["reply_ok"] == "y"
+    # From the misleading round-one sheet: only "OK" carries, and reply_ok starts blank.
+    old = [{"ticket_id": "T1", "facts_the_system_saw": "placed, delivered -", "ok_overall": "y", "reply_ok": "n"},
+           {"ticket_id": "T2", "facts_the_system_saw": "placed, delivered -", "ok_overall": "n", "reply_ok": "y"}]
+    out = carry_labels(old, stale=[])
+    assert list(out) == ["T1"] and out["T1"]["reply_ok"] == ""
+
+
+def test_judge_sees_the_account_name_so_a_correct_greeting_is_not_an_outside_fact():
+    # Round two, T058: without the name the judge blocked "Hi Ng Priya" as an invented fact (#48).
+    from app import steps
+    from app.types import Decision, Disposition
+
+    class Spy(ScriptedLLM):
+        def complete(self, step, messages, json_mode=False):
+            self.seen = messages[-1]["content"]
+            return super().complete(step, messages, json_mode)
+
+    spy = Spy()
+    d = Decision(rule_id="G9", disposition=Disposition.CLARIFY, reply_points=["We can only share details of "
+                                                                             "orders on your own account."])
+    steps.judge(spy, "I'm her husband", d, "Hi Ng Priya, ...", {"steps": []}, account_name="Ng Priya")
+    assert "<account_name>\nNg Priya\n</account_name>" in spy.seen
+
+
+def test_code_checks_catch_the_numeric_faults_and_leave_the_rest_to_the_judge(tmp_path):
+    from evals import judge_seeded
+    res = judge_seeded.run(ScriptedLLM(), out=tmp_path / "seeded.json")
+    rows = {r["id"]: r for r in res["rows"]}
+    assert {i for i, r in rows.items() if r["code_checks_failed"]} == {"S01", "S06", "S07", "S08"}
+    assert all(not rows[g]["code_checks_failed"] for g in ("G01", "G02", "G03"))
+    # The scripted judge passes everything, so here the six word-level faults get through: that gap is
+    # exactly what the live judge is kept for (#48).
+    assert res["caught_by_neither"] == 6 and res["bad_replies"] == 10
+
+
+def test_exchange_into_the_ordered_size_ships_the_right_pair_end_to_end():
+    # Round two, T014: the model read "ordered 42, got 39" as "exchange into 42". Code now catches it (#46).
+    tr = run("T014", llm=Reads(intent="RETURN_EXCHANGE", order_id="O1014", target_size="42"))
+    assert tr["rule_id"] == "D1" and names(tr, "done") == ["create_replacement", "create_return_label"]
+    assert "size 42 for size 42" not in tr["reply"] and "size already ordered" in tr["decision"]["note"]

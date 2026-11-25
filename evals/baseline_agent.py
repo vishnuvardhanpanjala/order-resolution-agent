@@ -39,7 +39,7 @@ def facts_for(ticket: dict, store, text: str) -> tuple[str | None, dict]:
                                                "created_at>=?", cid, _days_ago(90))["n"],
              "lost_parcel_claims_last_180_days": store.one("SELECT COUNT(*) AS n FROM lost_claims WHERE "
                                                            "customer_id=? AND created_at>=?", cid, _days_ago(180))["n"],
-             "refunds": store.q("SELECT order_id, amount, status, created_at, settled_at FROM refunds WHERE "
+             "refunds": store.q("SELECT order_id, amount, status, destination, created_at, settled_at FROM refunds WHERE "
                                 "customer_id=?", cid),
              "order": o, "order_number_given": oid if m else None}
     if o:

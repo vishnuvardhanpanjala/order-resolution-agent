@@ -230,7 +230,18 @@ def test_r4_outside_30_days_declined():
 
 def test_r4_defect_outside_return_window_goes_to_damage_rules():
     d = run(ext(I.RETURN_EXCHANGE, claim_type="defect"), o=order(days=60))
-    assert d.rule_id == "D1" and names(d.actions) == ["create_replacement"]
+    assert d.rule_id == "D1" and names(d.actions) == ["create_replacement", "create_return_label"]
+
+
+def test_exchange_into_the_size_already_ordered_is_a_wrong_size_claim():
+    # Round two, T014: "ordered 42 but inside the box is 39" was read as "exchange into 42" (#46).
+    d = run(ext(I.RETURN_EXCHANGE, target_size="41"))  # the default line is size 41
+    assert (d.rule_id, d.disposition) == ("D1", D.AUTO_RESOLVED)
+    assert names(d.actions) == ["create_replacement", "create_return_label"]
+    assert "size already ordered" in d.note and not any("for size 41" in p for p in d.reply_points)
+    # The wrong-item window still applies: nothing is sent for an old order.
+    late = run(ext(I.RETURN_EXCHANGE, target_size="41"), o=order(days=20))
+    assert late.rule_id == "D4" and not late.actions
 
 
 def test_r5_worn_item_declined():
@@ -249,14 +260,21 @@ def test_l1_multi_item_order_without_hint_asks_which_item():
 def test_d1_low_value_in_stock_replaced_without_photo():
     d = run(ext(I.DAMAGED_WRONG_ITEM, claim_type="damaged"))
     assert (d.rule_id, d.disposition) == ("D1", D.AUTO_RESOLVED)
-    assert names(d.actions) == ["create_replacement"]
+    assert names(d.actions) == ["create_replacement", "create_return_label"]
 
 
-def test_d1_wrong_item_comes_back_on_a_free_label_damaged_does_not():
-    wrong = run(ext(I.DAMAGED_WRONG_ITEM, claim_type="wrong_item"))
-    assert names(wrong.actions) == ["create_replacement", "create_return_label"]
-    damaged = run(ext(I.DAMAGED_WRONG_ITEM, claim_type="damaged"))
-    assert names(damaged.actions) == ["create_replacement"]
+def test_a_replaced_pair_comes_back_but_a_refunded_damaged_pair_does_not():
+    # Policy owner's calls: wrong items come back (#40); any pair we replace comes back (#45, round two, T012).
+    for claim in ("wrong_item", "damaged", "defect"):
+        d = run(ext(I.DAMAGED_WRONG_ITEM, claim_type=claim))
+        assert names(d.actions) == ["create_replacement", "create_return_label"], claim
+        assert any("free return label" in p for p in d.reply_points), claim
+    out = order(lines=[line(size="43", sku="PW-SAN", name="Strap Sandal", price=59)])  # size 43 is out of stock
+    refunded = run(ext(I.DAMAGED_WRONG_ITEM, claim_type="damaged"), o=out)
+    assert refunded.rule_id == "D2" and names(refunded.actions) == ["issue_refund"]
+    assert any("do not need to send the old pair back" in p for p in refunded.reply_points)
+    wrong_refunded = run(ext(I.DAMAGED_WRONG_ITEM, claim_type="wrong_item"), o=out)
+    assert names(wrong_refunded.actions) == ["issue_refund", "create_return_label"]
 
 
 def test_d2_low_value_out_of_stock_refunds_paid_minus_prior_refunds():
@@ -306,6 +324,16 @@ def test_f1_recent_pending_refund_reported():
     d = run(ext(I.REFUND_STATUS), refunds=[_refund(3)])
     assert (d.rule_id, d.disposition) == ("F1", D.AUTO_RESOLVED)
     assert any("S$69.00" in p for p in d.reply_points)
+
+
+def test_f1_reply_names_where_the_refund_went():
+    # Round-two label on T017: a finished refund should say which card it went to.
+    done = run(ext(I.REFUND_STATUS), refunds=[dict(_refund(10, status="settled"), destination="card ending 4968")])
+    assert any("completed on" in p and "to your card ending 4968" in p for p in done.reply_points)
+    pending = run(ext(I.REFUND_STATUS), refunds=[dict(_refund(3), destination="card ending 3595")])
+    assert any("to your card ending 3595" in p for p in pending.reply_points)
+    unknown = run(ext(I.REFUND_STATUS), refunds=[_refund(3)])
+    assert any("your original payment method" in p for p in unknown.reply_points)
 
 
 def test_f2_refund_late_past_10_business_days_escalates():
@@ -373,7 +401,7 @@ def test_gate_kill_switch_turns_auto_into_approval():
     cfg["kill_switch"] = ["DAMAGED_WRONG_ITEM"]
     d = gate(run(ext(I.DAMAGED_WRONG_ITEM, claim_type="damaged")), I.DAMAGED_WRONG_ITEM, cfg)
     assert d.disposition == D.PENDING_APPROVAL and not d.actions
-    assert names(d.approval_actions) == ["create_replacement"]
+    assert names(d.approval_actions) == ["create_replacement", "create_return_label"]
 
 
 def test_gate_level_l0_routes_to_person():

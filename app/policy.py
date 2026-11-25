@@ -237,6 +237,14 @@ def _return(p, c, o):
     label_points = ["We have created a free return label for you.",
                     f"Once the item arrives back unworn, we will refund {money(refundable)} to your original "
                     "payment method."]
+    if e.target_size and str(e.target_size).strip() == str(line["size"]):
+        # No real exchange goes into the size already on the order. The likely story is that the wrong size
+        # arrived (round two: "ordered 42 but inside the box is 39" was read as "exchange into 42"), so it is
+        # handled as a wrong-item claim, with that rule's window, limits and return label (policy owner, #46).
+        wrong = e.model_copy(update={"intent": I.DAMAGED_WRONG_ITEM, "claim_type": "wrong_item", "target_size": None})
+        d = _damaged(p.model_copy(update={"extraction": wrong}), c, o)
+        why = f"asked to exchange into size {line['size']}, the size already ordered: handled as a wrong-size claim"
+        return d.model_copy(update={"note": "; ".join(x for x in (why, d.note) if x)})
     if e.target_size:
         swap = Action(name="create_exchange", order_id=oid, line_no=line["line_no"],
                       args={"new_size": e.target_size})
@@ -281,21 +289,24 @@ def _damaged(p, c, o):
     else:
         fix = Action(name="issue_refund", order_id=oid, line_no=line["line_no"], amount=value)
     sorry = f"Sorry about the {line['name']}."
-    # A wrong item is new stock we can sell again, so it comes back on a free label. A damaged pair does not.
+    # Policy owner's calls: a pair we replace always comes back on a free label, wrong or damaged (#40, #45).
+    # When we refund instead, only a wrong item comes back: it is new stock we can sell again.
     wrong = claim == "wrong_item"
-    back = ([Action(name="create_return_label", order_id=oid, line_no=line["line_no"])] if wrong else [])
-    keep = ("Please send the wrong pair back with the free return label below. You do not need to wait: the "
-            "right pair ships now." if wrong else "You do not need to send the old pair back.")
+    label = [Action(name="create_return_label", order_id=oid, line_no=line["line_no"])]
+    which = "wrong" if wrong else "old"
+    send_back = (f"Please send the {which} pair back with the free return label below. You do not need to wait: "
+                 f"the {'right' if wrong else 'new'} pair ships now.")
     if value <= c["PHOTO_REQUIRED_ABOVE"] and value <= c["AUTO_REFUND_CAP"]:
         if in_stock:
             return _d("D1", D.AUTO_RESOLVED, [sorry, f"We are sending you a replacement pair in size "
-                                                     f"{line['size']} at no cost.", keep],
-                      cls="replacement_within_cap", actions=[fix] + back)
+                                                     f"{line['size']} at no cost.", send_back],
+                      cls="replacement_within_cap", actions=[fix] + label)
         return _d("D2", D.AUTO_RESOLVED, [sorry, f"That size is out of stock, so we have refunded {money(value)} "
                                                  f"to your original payment method ({o['payment_method']}).",
                                           "Refunds take 5 to 10 business days to show.",
-                                          keep.replace(" You do not need to wait: the right pair ships now.", "")],
-                  cls="refund_within_cap", actions=[fix] + back)
+                                          "Please send the wrong pair back with the free return label below."
+                                          if wrong else "You do not need to send the old pair back."],
+                  cls="refund_within_cap", actions=[fix] + (label if wrong else []))
     if not p.photo_attached:
         return _clarify("D3", [sorry, "Please reply with a clear photo of the problem so our team can check it.",
                                "Once we have the photo, a team member will reply within 1 business day."])
@@ -322,13 +333,13 @@ def _refund_status(p, c):
                           "team, who will reply within 1 business day."])
     points = []
     for r in refunds:
-        if r["status"] == "settled":
+        to = f"your {r['destination']}" if r.get("destination") else "your original payment method"
+        if r["status"] == "settled":  # the reply names where the money went (round-two label on T017)
             points.append(f"The refund of {money(r['amount'])} for order {r['order_id']} was completed on "
-                          f"{day(r['settled_at'])}.")
+                          f"{day(r['settled_at'])}, to {to}.")
         else:
             points.append(f"The refund of {money(r['amount'])} for order {r['order_id']} was sent on "
-                          f"{day(r['created_at'])} to your original payment method. Refunds take 5 to 10 "
-                          "business days to show.")
+                          f"{day(r['created_at'])} to {to}. Refunds take 5 to 10 business days to show.")
     return _info("F1", points)
 
 

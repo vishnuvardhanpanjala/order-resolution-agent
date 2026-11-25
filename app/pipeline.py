@@ -142,7 +142,7 @@ def _reply(env, decision, name, text, done, tr):
         if failed:
             feedback = "; ".join(c["detail"] for c in failed)
             continue
-        verdict = steps.judge(env.llm, text, decision, draft_text, tr)
+        verdict = steps.judge(env.llm, text, decision, draft_text, tr, account_name=name)
         if verdict["pass"] is True:
             return draft_text, checks, verdict, None
         if verdict["pass"] is None:

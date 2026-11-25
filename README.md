@@ -8,7 +8,7 @@ An agent that resolves customer order issues end to end where policy allows, and
 
 ```bash
 pip install -r requirements.txt
-make test    # 120 tests: policy, controls, verifier, pipeline, Groq client against a fake server
+make test    # 126 tests: policy, controls, verifier, pipeline, Groq client against a fake server
 make eval    # evals and hard gates (replays recorded model calls, or a scripted stand-in model)
 make demo    # 10 hero tickets, the approval queue, one human approval, the audit log
 make chat    # talk to the agent yourself, as a test customer

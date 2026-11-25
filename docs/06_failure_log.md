@@ -1,6 +1,6 @@
 # Failure log
 
-> Found on simulated traffic: synthetic tickets, a fictional brand, one person labelling. Round one is the first live run on Groq (24 Nov 2026). Nothing here comes from real customers.
+> Found on simulated traffic: synthetic tickets, a fictional brand, one person labelling. Round one is the first live run on Groq (24 Nov 2026), round two the second (25 Nov 2026). Nothing here comes from real customers.
 
 ## How the analysis was done
 
@@ -52,20 +52,56 @@ The judge stopped one reply in round one (T050 with detection off). Whether it e
 
 ## Before and after
 
-Round two runs the same tickets after the fixes, plus 3 new conversation tickets. Seven expected outcomes changed on the policy owner's calls (#38 to #40), so compare like with like: the "round two" column is filled in after the second live run.
+Round two ran the same tickets after the fixes, plus 3 new conversation tickets. Seven expected outcomes changed between the rounds on the policy owner's calls (#38 to #40). So the fair comparison scores both rounds' traces against the same, current expected outcomes, on the 60 tickets both rounds share.
 
-| measure (our system) | round one | round two |
+| measure, 60 shared tickets | round one | round two |
 |---|---|---|
-| Correct outcome vs expected | 59/60 | to fill |
-| Correct actions vs expected | 58/60 | to fill |
-| Missed escalation | 0/18 | to fill |
-| Over-escalation | 1/42 | to fill |
-| Outcomes I marked OK | 23/39 (8 of the 16 "not OK" came from sheet errors) | to fill |
-| Attacks with a harmful outcome | 0 (after the scoring fix) | to fill |
-| Baseline: missed escalation | 5/18 | to fill |
+| Ours: correct outcome | 53/60 | 58/60 |
+| Ours: correct actions | 57/60 | 59/60 |
+| Ours: missed hand-off (auto-answered when a person was needed) | 0/14 | 0/14 |
+| Ours: needless hand-off (sent to a person when a safe answer existed) | 5/46 | 2/46 |
+| Ours: attacks with a harmful outcome | 0 | 0 |
+| Baseline: correct outcome | 48/60 | 51/60 |
+| Baseline: missed hand-off | 5/14 | 6/14 |
+| Outcomes I marked OK (39 labelled each round) | 23/39, 8 of the 16 "not OK" from sheet errors | 37/39 |
+
+Round one's 59/60 in the old report was scored against the old expected outcomes. Against today's, it is 53/60: the gap is the "ask first" change (#38), which round one's traces could not follow.
+
+The five needless hand-offs in round one were T043, T044, T048, T058 and T060. Round two fixed three. T044 and T058 are below.
+
+## Round two: what went wrong
+
+Same method as round one. 39 traces labelled, notes grouped, each group given to the layer that owns it.
+
+| # | Failure | Count | Tickets | Owner | Fix | Test |
+|---|---|---|---|---|---|---|
+| F7 | The judge blocked a correct reply | 1 (in both detection setups) | T058: it took "Hi Ng Priya", the account holder, for an invented name, because the message talks about someone else | Judge input | The judge now gets the name on the account (#48) | `test_judge_sees_the_account_name_so_a_correct_greeting_is_not_an_outside_fact` |
+| F8 | The model misread a wrong size as an exchange | 1 | T014: "ordered 42, got 39" became "exchange into 42" | Classify model, caught in code | An exchange into the size already ordered is a wrong-size claim (#46) | `test_exchange_into_the_size_already_ordered_is_a_wrong_size_claim`, end-to-end too |
+| F9 | Model confidence landed on the line | 1 | T044: "hello??" scored 0.6 (0.4 in round one) and went to a person | Classify model | None on purpose: moving the line to pass one ticket is tuning to the test (#49) | - |
+| F10 | A business rule I disagreed with | 1 | T012: a replaced pair should come back | Policy owner | Replaced pairs come back on a free label (#45) | `test_a_replaced_pair_comes_back_but_a_refunded_damaged_pair_does_not` |
+| F11 | Reply content | 1 | T017: the refund reply didn't say which card | Policy reply text | Refund replies name the card (#47) | `test_f1_reply_names_where_the_refund_went` |
+| F12 | The eval report hid the judge's blocks | 1 | The hand-label table leaves blocked replies out, so the T058 block did not show in it | Eval tooling | The report lists every blocked reply (#48) | - |
+
+T045 was marked not OK ("couldn't verify order details"). The order system is down for that ticket on purpose, and every read is already tried twice, so a person taking over is the expected outcome. The label sheet now says the read was retried. Not counted.
+
+Labels still drift into the wrong column. My two "reply not OK" marks (T012, T017) were about what the decision said, not how the reply said it. Both replies said exactly what the decision said. They are counted under F10 and F11, where they belong.
+
+## The judge in round two
+
+| | human: reply OK | human: reply not OK |
+|---|---|---|
+| judge: pass | 37 | 2 |
+| judge: fail | 0 | 0 |
+
+The two "not OK" are T012 and T017, which are decision content (above). So, read properly, round two had no reply that strayed from its decision, and the judge had nothing to catch. Its one block, on T058, was wrong, and that reply is not in this table because the customer never saw it (F12).
+
+Cost by step, our system, round two: judge 66%, classify 26%, draft 8%. That is about $0.00042 of the $0.00063 per ticket.
+
+I kept it on the send path anyway (#48). The code checks cannot see promises, omissions, contradictions or tone, and the labels have not yet produced a bad reply to measure it on. So every run now also tests it on 10 replies we broke on purpose (`evals/judge_seeded.py`).
 
 ## Still open
 
-- T013: a strap that snapped after one walk. Policy treats it as damage within 14 days, and with that size out of stock it refunds S$59. My note said "escalate, no policy to apply". Kept as is for now.
+- T044-style swings: a vague message can land either side of the 0.6 line between runs (#49).
 - Hand-over replies are written by the drafting model, but they are nearly fixed text. A template would save a draft call and a judge call on about a third of tickets.
-- The judge's value against its cost, on round-two labels.
+- The judge's catch rate on real bad replies. The seeded check is a floor. Weekly labelling after launch is the real test, with the switch-off rule in #48.
+- T013 (strap snapped, refunded because the size was out of stock), open after round one: marked OK in round two, so closed.

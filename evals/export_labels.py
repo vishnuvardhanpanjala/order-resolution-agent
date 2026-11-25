@@ -7,9 +7,10 @@ the label.
 The sheet spells every fact out in words. The first version printed "placed, delivered -", which reads as
 "delivered", and 8 of 16 "wrong outcome" labels in the first round came from that and similar gaps (failure log, F1).
 
-After a new live run, the previous sheet is kept as to_label_run<k>.csv. An "OK" label carries over only for a
-conversation that came out exactly the same (same rule, actions and reply). Everything else is blank again,
-and reply_ok is always blank: its meaning was narrowed after the first round (decision #41).
+After a new live run, the previous sheet is kept as to_label_run<k>.csv. Labels carry over only for a
+conversation that came out exactly the same (same rule, actions and reply). Everything else is blank again.
+Coming from the round-one sheet, only "OK" outcome labels carry and reply_ok starts blank, because that sheet
+misled and reply_ok's meaning was narrowed after it (decisions #41, #43). From round two on, both labels carry.
 """
 from __future__ import annotations
 
@@ -79,6 +80,8 @@ def what_it_did(tr) -> str:
            f"Rule {tr['rule_id']}: {tr['disposition']}" + (f" ({tr['reason_code']})" if tr["reason_code"] else "") + "."]
     if d.get("note"):
         out.append(f"Why: {d['note']}.")
+    if tr["rule_id"].startswith("G4"):
+        out.append("Every read is tried twice, so the system was still down on the second try.")
     out += [f"Quiet alert to the risk team: {a.get('handled')}" for a in tr["security_alerts"]]
     if tr["reply_held"]:
         out.append("The draft failed its checks, so a fixed safe reply was sent.")
@@ -103,6 +106,24 @@ def _same(row: dict, tr: dict) -> bool:
             and f"rule {tr['rule_id']}".lower() in norm(row.get("what_the_system_did")).lower())
 
 
+def carry_labels(old: list[dict], stale: list[dict]) -> dict[str, dict]:
+    """Labels from the last sheet that still apply: only rows where nothing the labeller saw has changed.
+
+    Round two carried only "OK" labels and blanked reply_ok, because the round-one sheet misled and reply_ok's
+    meaning changed after it. A sheet with the fixed facts column carries both labels as they are."""
+    fixed_sheet = bool(old) and all("Today in this test" in r.get("facts_the_system_saw", "") for r in old)
+    carried = {}
+    for r in old:
+        if r in stale or not r.get("ok_overall", "").strip():
+            continue
+        if not fixed_sheet:
+            if r["ok_overall"].strip().lower() != "y":
+                continue
+            r = dict(r, reply_ok="")
+        carried[r["ticket_id"]] = r
+    return carried
+
+
 def main(n: int = 40):
     traces = [json.loads(l) for l in (ROOT / "traces" / "recorded-ours.jsonl").read_text(encoding="utf-8").splitlines() if l]
     by_id = {t["ticket_id"]: t for t in traces}
@@ -124,9 +145,7 @@ def main(n: int = 40):
         while (OUT.parent / f"to_label_run{k}.csv").exists():
             k += 1
         OUT.rename(OUT.parent / f"to_label_run{k}.csv")
-        # Only "OK" labels carry over. Several first-round "not OK" labels came from the misleading sheet, so
-        # every "not OK" row is looked at again with the clearer facts.
-        carried = {r["ticket_id"]: r for r in old if r not in stale and r.get("ok_overall", "").strip().lower() == "y"}
+        carried = carry_labels(old, stale)
         print(f"previous sheet kept as to_label_run{k}.csv; {len(carried)} unchanged conversations keep their labels")
         old = []
     have = {r["ticket_id"] for r in old}
@@ -144,7 +163,7 @@ def main(n: int = 40):
             w.writerow({"trace_id": f"{tr['run_id']}:{tr['ticket_id']}", "ticket_id": tr["ticket_id"],
                         "conversation": conversation(t), "facts_the_system_saw": facts(store, tr, t),
                         "what_the_system_did": what_it_did(tr), "actions": actions_text(tr), "reply": tr["reply"],
-                        "ok_overall": prev.get("ok_overall", ""), "reply_ok": "",
+                        "ok_overall": prev.get("ok_overall", ""), "reply_ok": prev.get("reply_ok", ""),
                         "first_error_note": prev.get("first_error_note", ""),
                         "carried_from_last_run": "yes" if prev else ""})
     print(f"kept {len(old)} rows, added {len(pick)} traces ({len(flagged)} flagged by checks in all) "

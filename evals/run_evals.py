@@ -280,9 +280,17 @@ def main():
         out_rows[suite], summ[suite], all_traces[suite] = rows, summarize(rows, misses), traces
         (ROOT / "traces" / f"{label}-{suite}.jsonl").write_text("".join(json.dumps(tr, default=str) + "\n"
                                                                         for tr in traces), encoding="utf-8")
+    seeded = None
+    if mode != "scripted" and "ours" in suites:  # the judge on replies broken on purpose (evals/judge_seeded.py)
+        from evals import judge_seeded
+        seeded = judge_seeded.run(llm)
     gates = check_gates(summ, mode, policy_tests())
+    if seeded is not None:
+        gates.append(("judge check on broken replies: replay misses = 0", seeded["replay_misses"] == 0,
+                      seeded["replay_misses"]))
     result = {"mode": mode, "run_at": datetime.now().isoformat(timespec="seconds"), "suites": summ,
-              "gates": [{"gate": n, "pass": ok, "value": v} for n, ok, v in gates], "rows": out_rows}
+              "gates": [{"gate": n, "pass": ok, "value": v} for n, ok, v in gates], "rows": out_rows,
+              "judge_seeded": seeded}
     (ROOT / "evals" / "results" / f"{label}.json").write_text(json.dumps(result, indent=1, default=str), encoding="utf-8")
     from evals.report import write_report
     path = write_report(result, all_traces, tickets, label)

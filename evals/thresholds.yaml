@@ -1,3 +1,4 @@
-# Set after the first live run (Phase 5) and recorded in the eval report.
+# Set after the second live run (decision #50) and recorded in the eval report.
+# Round two scored 0.97 (61 of 63). The floor sits below it because live runs move a few points.
 # Never lower it to make CI pass. Fix the system instead.
-disposition_accuracy_min: null
+disposition_accuracy_min: 0.90

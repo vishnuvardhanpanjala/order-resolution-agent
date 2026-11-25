@@ -46,7 +46,7 @@ Two checks run on the result of the rules above:
 | R3 | RETURN_EXCHANGE | final sale (and no defect) | AUTO: decline, say why |
 | R4 | RETURN_EXCHANGE | over 30 days (and no defect) | AUTO: decline, say why |
 | R5 | RETURN_EXCHANGE | customer says it is worn | AUTO: decline |
-| R1 | RETURN_EXCHANGE | first exchange, new size in stock | AUTO: create the exchange |
+| R1 | RETURN_EXCHANGE | first exchange, new size in stock | AUTO: create the exchange. If the "new" size is the size already on the order, it is handled as a wrong-item claim under D1/D2 instead (decision #46). |
 | R2 | RETURN_EXCHANGE | already exchanged once | Exchange waits for approval |
 | R6 | RETURN_EXCHANGE | new size out of stock | AUTO: return label, refund when the item is back |
 | R7 | RETURN_EXCHANGE | return, no new size wanted | AUTO: return label, refund when the item is back |
@@ -54,11 +54,11 @@ Two checks run on the result of the rules above:
 | D4 | DAMAGED_WRONG_ITEM | outside window: 14 days for wrong or damaged on arrival, 180 for a defect | AUTO: decline, say why |
 | D5 | DAMAGED_WRONG_ITEM | 2 or more refunds in the last 90 days | ESCALATED, RISK |
 | D7 | DAMAGED_WRONG_ITEM | nothing left to refund on the line | ESCALATED, JUDGEMENT |
-| D1 | DAMAGED_WRONG_ITEM | value up to S$80, in stock | AUTO: replacement, no photo. A wrong item also gets a free return label for the wrong pair (decision #40). |
-| D2 | DAMAGED_WRONG_ITEM | value up to S$80, out of stock | AUTO: refund the line value, no photo. A wrong item also gets a free return label. |
+| D1 | DAMAGED_WRONG_ITEM | value up to S$80, in stock | AUTO: replacement, no photo, and a free return label: the replaced pair comes back, wrong or damaged (decisions #40, #45). |
+| D2 | DAMAGED_WRONG_ITEM | value up to S$80, out of stock | AUTO: refund the line value, no photo. A wrong item also gets a free return label. A damaged pair stays with the customer. |
 | D3 | DAMAGED_WRONG_ITEM | value over S$80, no photo | CLARIFY: ask for a photo |
 | D6 | DAMAGED_WRONG_ITEM | value over S$80, photo attached | Replacement or refund waits for a human to check the photo |
-| F1 | REFUND_STATUS | order number given, refunds found, none late | AUTO: status, amount, date |
+| F1 | REFUND_STATUS | order number given, refunds found, none late | AUTO: status, amount, date, and the card it went to (decision #47) |
 | F2 | REFUND_STATUS | a refund pending over 10 business days | ESCALATED, JUDGEMENT (payments team) |
 | F3 | REFUND_STATUS | no refund found | AUTO: say so, ask what they expected |
 | A1 | ADDRESS_CHANGE | placed or packed, Singapore address with 6-digit postal code | AUTO: update. The reply repeats the full address with the postal code. |

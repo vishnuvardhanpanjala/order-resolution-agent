@@ -138,6 +138,16 @@ def write_report(result: dict, traces: dict, tickets: list[dict], label: str) ->
         s = S[c]
         L.append(f"- {SUITE_NAMES[c]}: {s['tokens_per_ticket']} tokens per ticket, total {_usd(s['cost_usd_total'])} "
                  f"for {s['tickets']} tickets.\n")
+    ours = traces.get("ours") or []
+    by_step = Counter()
+    for tr in ours:
+        for st in tr.get("steps", []):
+            by_step[st["step"]] += st.get("cost_usd", 0) or 0
+    if ours and sum(by_step.values()):
+        tot = sum(by_step.values())
+        L.append("- Ours, cost per ticket by step: " + ", ".join(
+            f"{k} {_usd(v / len(ours))} ({v / tot:.0%})" for k, v in sorted(by_step.items(), key=lambda kv: -kv[1]))
+                 + ". The judge is kept on purpose (decision #48).\n")
 
     jv = ROOT / "evals" / "results" / "judge_validation.json"
     L.append("\n## Judge validation\n\n")
@@ -155,6 +165,35 @@ def write_report(result: dict, traces: dict, tickets: list[dict], label: str) ->
                  + f"- {j['n']} labels is a small sample. Treat these rates as rough.\n")
     else:
         L.append("Not run yet. Needs hand labels (`make labels`, then `make judge`).\n")
+    blocked = [tr["ticket_id"] for tr in traces.get("ours") or []
+               if tr.get("reply_held") and (tr.get("judge") or {}).get("pass") is False]
+    L.append(f"- Replies the judge blocked in this run (ours): {', '.join(blocked) or 'none'}. A blocked reply is "
+             "swapped for a fixed \"a person will reply\" message, so a wrong block becomes a hand-off. The table "
+             "above leaves blocked replies out (the customer never saw them), so read these by hand.\n")
+
+    sd = result.get("judge_seeded")
+    L.append("\n## The judge on replies we broke on purpose\n\n")
+    if sd:
+        L.append(f"Hand labels found too few bad replies to measure the judge, so `evals/judge_seeded.py` gives it "
+                 f"{sd['bad_replies']} replies with one fault each, and {sd['good_replies']} good ones. We wrote the "
+                 "faults ourselves, so they are easier than real ones: treat this as a floor check.\n\n"
+                 "| id | fault | code checks | judge |\n|---|---|---|---|\n")
+        for r in sd["rows"]:
+            code = ", ".join(r["code_checks_failed"]) or ("pass" if r["should_send"] else "missed")
+            jv_ = {True: "pass", False: "fail", None: "no verdict"}[r["judge_pass"]]
+            if not r["should_send"] and r["judge_pass"] is not False:
+                jv_ += " (missed)"
+            if r["should_send"] and r["judge_pass"] is False:
+                jv_ += " (wrong block)"
+            L.append(f"| {r['id']} | {r['fault']} | {code} | {jv_} |\n")
+        L.append(f"\n- Bad replies caught by the code checks: {sd['caught_by_code_checks']}/{sd['bad_replies']}. "
+                 f"By the judge: {sd['caught_by_judge']}/{sd['bad_replies']}. By the judge alone: "
+                 f"{sd['caught_by_judge_only']}. By neither: {sd['caught_by_neither']}.\n"
+                 f"- Good replies the judge passed: {sd['good_passed_by_judge']}/{sd['good_replies']}.\n"
+                 "- The code checks only see numbers, dates, IDs, links and \"done\" claims. Promises, missing "
+                 "points, contradictions and tone are left to the judge.\n")
+    else:
+        L.append("Not run in this mode.\n")
 
     L.append("\n## What these numbers do not prove\n\n- The tickets are synthetic and were written by the same "
              "person who wrote the policy. Real customers write things we did not think of.\n- "

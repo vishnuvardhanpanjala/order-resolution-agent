@@ -65,11 +65,15 @@ def draft(llm, decision: Decision, customer_name: str | None, text: str, trace: 
     return (out or "").strip()
 
 
-def judge(llm, text: str, decision: Decision, reply: str, trace: dict) -> dict:
-    """Binary verdict. Returns pass=None if the judge itself fails, which the pipeline treats as 'hold'."""
+def judge(llm, text: str, decision: Decision, reply: str, trace: dict, account_name: str | None = None) -> dict:
+    """Binary verdict. Returns pass=None if the judge itself fails, which the pipeline treats as 'hold'.
+
+    account_name is the name on the logged-in account, which the draft greets. Without it the judge
+    blocked a correct reply in round two (T058), taking the greeting for an outside fact."""
     payload = {"disposition": decision.disposition.value, "reply_points": decision.reply_points}
     user = (f"<customer_message>\n{text}\n</customer_message>\n<decision>\n{json.dumps(payload)}\n</decision>\n"
-            f"<reply>\n{reply}\n</reply>")
+            + (f"<account_name>\n{account_name}\n</account_name>\n" if account_name else "")
+            + f"<reply>\n{reply}\n</reply>")
     messages = [{"role": "system", "content": PROMPTS["judge"][1]}, {"role": "user", "content": user}]
     for attempt in (1, 2):
         try:

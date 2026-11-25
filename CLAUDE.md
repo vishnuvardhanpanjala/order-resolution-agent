@@ -39,3 +39,9 @@ This repo was built with AI coding help. These rules keep that help honest.
   counts: the notes are where a broken eval tool shows.
 - "Label more rows" would have re-exported the label file and wiped labels already written. Rule: the label
   export keeps every existing row and its labels, and only adds new rows at the bottom.
+- The judge-validation table leaves out replies the judge blocked, because the customer never saw them. So
+  in round two the judge's one wrong block (T058) showed nowhere except as a hand-off. Rule: the report lists
+  every reply the judge blocked, to be read by hand.
+- The judge checked "no fact outside the decision" without being told the customer's name, so a correct
+  greeting looked like an invented fact. Rule: when a checker flags something, first ask whether it was given
+  everything the writer was given.

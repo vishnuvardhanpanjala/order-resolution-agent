@@ -3,7 +3,8 @@
 Everything here is made up: Pebblewalk, the customers, emails, addresses and orders.
 All times are relative to app.types.NOW (Friday 20 Nov 2026, 10:00 Singapore time).
 Expected outcomes were written from docs/03_policy.md before any model was run. Seven were changed after the
-first live run, on the policy owner's calls in error analysis (decisions #38 to #40), and say so where they are.
+first live run, on the policy owner's calls in error analysis (decisions #38 to #40), and four more after the
+second (#45, #47). Each one says so where it is.
 """
 
 PRODUCTS = {  # sku: (name, price in SGD)
@@ -77,7 +78,8 @@ T("T011", "C011", "Return sneakers O1011. Dont fit.", "RETURN_EXCHANGE",
   "AUTO_RESOLVED", order="O1011", mention=["30 days"], tags=("normal", "terse"))
 O("O1012", "C012", "delivered", days=3)
 T("T012", "C012", "wah the sole of my Daily Sneakers come off on the first day i wear them!! O1012. so disappointed",
-  "DAMAGED_WRONG_ITEM", "AUTO_RESOLVED", ["create_replacement"], order="O1012", tags=("normal", "singlish"))
+  "DAMAGED_WRONG_ITEM", "AUTO_RESOLVED", ["create_replacement", "create_return_label"], order="O1012",
+  tags=("normal", "singlish"))  # changed after round two (#45): a pair we replace comes back
 O("O1013", "C013", "delivered", days=4, lines=[L("PW-SAN", "38")])
 T("T013", "C013", "The strap on my sandals snapped after one walk. Order O1013.", "DAMAGED_WRONG_ITEM",
   "AUTO_RESOLVED", ["issue_refund"], order="O1013", refund=59.0, mention=["59"])
@@ -91,11 +93,11 @@ T("T015", "C015", "My Trail Boots arrived with a torn seam. Photo attached. Orde
 O("O1016", "C016", "delivered", days=12, lines=[L("PW-SNK", "40")])
 REFUNDS.append(("C016", "O1016", 1, 69.0, "pending", 4, None))
 T("T016", "C016", "When will I get my refund for O1016?", "REFUND_STATUS", "AUTO_RESOLVED", order="O1016",
-  mention=["69"])
+  mention=["69", "3595"])  # card added after round two (#47)
 O("O1017", "C017", "delivered", days=20, lines=[L("PW-RUN", "41")])
 REFUNDS.append(("C017", "O1017", 1, 129.0, "settled", 15, 8))
 T("T017", "C017", "refund for O1017 done already?", "REFUND_STATUS", "AUTO_RESOLVED", order="O1017",
-  mention=["129"], tags=("normal", "singlish", "terse"))
+  mention=["129", "4968"], tags=("normal", "singlish", "terse"))  # card added after round two (#47)
 O("O1018", "C018", "placed", lines=[L("PW-LOF", "42")])
 T("T018", "C018", "Please change the delivery address for O1018 to 21 Tampines Ave 3, #05-12, Singapore 529705.",
   "ADDRESS_CHANGE", "AUTO_RESOLVED", ["update_address"], order="O1018", mention=["529705"])
@@ -135,7 +137,8 @@ T("T029", "C029", "Any update on my refund?", "REFUND_STATUS", "CLARIFY",
   mention=["order number"])  # changed after error analysis (#39): ask which order, don't guess
 O("O1030", "C030", "delivered", days=60, lines=[L("PW-SNK", "42")])
 T("T030", "C030", "The sole of my Daily Sneakers cracked after 2 months of normal use. Order O1030.",
-  "DAMAGED_WRONG_ITEM", "AUTO_RESOLVED", ["create_replacement"], order="O1030")
+  "DAMAGED_WRONG_ITEM", "AUTO_RESOLVED", ["create_replacement", "create_return_label"],
+  order="O1030")  # changed after round two (#45): a pair we replace comes back
 
 # ------------------------------------------------------------------ edge (15)
 E = ("edge",)

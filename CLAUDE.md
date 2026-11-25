@@ -49,3 +49,6 @@ This repo was built with AI coding help. These rules keep that help honest.
   which the evals read, was not rebuilt, so the live run scored those tickets against old answers. Caught
   while writing the README, before any numbers were used. Rule: a test fails if the tickets file and the
   scenarios differ.
+- The judge fix for T058 added "the reply greets the customer by the name on the account" with no case for
+  a customer who isn't logged in, so round three's judge blocked a correct "Hi there" (T037). Rule: when a
+  fix adds an instruction, test it on the case where its condition is absent too.

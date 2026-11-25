@@ -20,6 +20,7 @@
 - **Two requests in one message** go to a person today (1 of the 63 test tickets).
 - **Product questions** ("do you have this in blue?") go to a person. A knowledge base would answer many.
 - **Hand-over replies** are written by the drafting model, but they are nearly fixed text. A template would save a draft call and a judge call on nearly 3 tickets in 10 (18 of 63 in round two).
+- **The judge's greeting rule** needs one more sentence for customers who aren't logged in (T037, failure log F13).
 - **Vague first messages** can land on either side of the 0.6 confidence line between runs (T044, decision #49).
 - **The same-size exchange rule** (decision #46) treats every such request as a wrong size. Real data may show other reasons.
 - **The approval console** is a command line. It needs a real screen, and research with associates on what they need to see to decide fast without rubber-stamping.

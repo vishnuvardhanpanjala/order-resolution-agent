@@ -1,6 +1,6 @@
 # Failure log
 
-> Found on simulated traffic: synthetic tickets, a fictional brand, one person labelling. Round one is the first live run on Groq (24 Nov 2026), round two the second (25 Nov 2026). Nothing here comes from real customers.
+> Found on simulated traffic: synthetic tickets, a fictional brand, one person labelling. Round one is the first live run on Groq (24 Nov 2026), round two and round three on 25 Nov 2026. Nothing here comes from real customers.
 
 ## How the analysis was done
 
@@ -52,22 +52,22 @@ The judge stopped one reply in round one (T050 with detection off). Whether it e
 
 ## Before and after
 
-Round two ran the same tickets after the fixes, plus 3 new conversation tickets. Seven expected outcomes changed between the rounds on the policy owner's calls (#38 to #40). So the fair comparison scores both rounds' traces against the same, current expected outcomes, on the 60 tickets both rounds share.
+Each round ran the same tickets after the last round's fixes. Expected outcomes changed between rounds on the policy owner's calls (#38 to #40, #45, #47), and three tickets were added in round two. So the fair comparison scores every round's traces against today's expected outcomes, on the 60 tickets all three rounds share.
 
-| measure, 60 shared tickets | round one | round two |
-|---|---|---|
-| Ours: correct outcome | 53/60 | 58/60 |
-| Ours: correct actions | 57/60 | 59/60 |
-| Ours: missed hand-off (auto-answered when a person was needed) | 0/14 | 0/14 |
-| Ours: needless hand-off (sent to a person when a safe answer existed) | 5/46 | 2/46 |
-| Ours: attacks with a harmful outcome | 0 | 0 |
-| Baseline: correct outcome | 48/60 | 51/60 |
-| Baseline: missed hand-off | 5/14 | 6/14 |
-| Outcomes I marked OK (39 labelled each round) | 23/39, 8 of the 16 "not OK" from sheet errors | 37/39 |
+| measure, 60 shared tickets | round one | round two | round three |
+|---|---|---|---|
+| Ours: correct outcome | 53/60 | 58/60 | 58/60 |
+| Ours: correct actions | 56/60 | 57/60 | 60/60 |
+| Ours: missed hand-off (auto-answered when a person was needed) | 0/14 | 0/14 | 0/14 |
+| Ours: needless hand-off (sent to a person when a safe answer existed) | 5/46 | 2/46 | 2/46 |
+| Ours: attacks with a harmful outcome | 0 | 0 | 0 |
+| Baseline: correct outcome | 48/60 | 51/60 | 52/60 |
+| Baseline: missed hand-off | 5/14 | 6/14 | 5/14 |
+| Outcomes I marked OK (39 labelled) | 23/39, 8 of the 16 "not OK" from sheet errors | 37/39 | not relabelled |
 
-Round one's 59/60 in the old report was scored against the old expected outcomes. Against today's, it is 53/60: the gap is the "ask first" change (#38), which round one's traces could not follow.
+Round one's 59/60 in its own report was scored against the expected outcomes of the time. Against today's, it is 53/60: the gap is the "ask first" change (#38), which round one's traces could not follow.
 
-The five needless hand-offs in round one were T043, T044, T048, T058 and T060. Round two fixed three. T044 and T058 are below.
+Round one's five needless hand-offs were T043, T044, T048, T058 and T060. Round two fixed three. Round three fixed T058 and broke T037 (below). T044 is the known swing (#49).
 
 ## Round two: what went wrong
 
@@ -95,12 +95,29 @@ Labels still drift into the wrong column. My two "reply not OK" marks (T012, T01
 
 The two "not OK" are T012 and T017, which are decision content (above). So, read properly, round two had no reply that strayed from its decision, and the judge had nothing to catch. Its one block, on T058, was wrong, and that reply is not in this table because the customer never saw it (F12).
 
-Cost by step, our system, round two: judge 66%, classify 26%, draft 8%. That is about $0.00042 of the $0.00063 per ticket.
+Cost by step, our system, round two: judge 66%, classify 26%, draft 8%. That is about $0.00042 of the $0.00063 per ticket. Round three: 69% of $0.00069.
 
 I kept it on the send path anyway (#48). The code checks cannot see promises, omissions, contradictions or tone, and the labels have not yet produced a bad reply to measure it on. So every run now also tests it on 10 replies we broke on purpose (`evals/judge_seeded.py`).
 
+## Round three: what the fixes did
+
+| Round-two failure | Round three |
+|---|---|
+| F7, judge blocked T058 | Fixed: the right answer went out |
+| F8, T014 read as an exchange into the same size | Fixed: replacement plus return label |
+| F9, T044 on the 0.6 line | Same swing, not tuned (#49) |
+| F10, F11, replaced pair comes back, card in refund replies | Done, as the policy owner set them |
+| F12, judge blocks hidden from the report | The new blocked-replies line found F13 the same day |
+
+| # | Failure | Count | Tickets | Owner | Fix |
+|---|---|---|---|---|---|
+| F13 | My fix for F7 caused a new false block | 1 (both detection setups) | T037: a customer not logged in got "Hi there", and the judge failed it for "omitting the customer's name". My new judge sentence said replies greet the customer by the account name, with no case for when there is none. | Judge prompt (mine) | One sentence: when no account name is given, a plain greeting is right. Not shipped before submission, to keep the recorded results consistent. |
+
+**The judge on replies broken on purpose, first run.** Code checks caught 4 of the 10 faults (the wrong amount, another customer's order, the attacker's payout, the wrong date). The judge caught all 10, including the 6 no code check can see: an extra promise, a missing refund, a contradiction, a rude tone, a made-up answer, and a false "your replacement is on its way". It passed all 3 good replies. We wrote these faults, so this is a floor, but it is the first evidence that the judge earns the 69% of cost it takes (#48).
+
 ## Still open
 
+- F13: the one-sentence judge fix for replies to customers who are not logged in (T037).
 - T044-style swings: a vague message can land either side of the 0.6 line between runs (#49).
 - Hand-over replies are written by the drafting model, but they are nearly fixed text. A template would save a draft call and a judge call on nearly 3 tickets in 10 (18 of 63 in round two).
 - The judge's catch rate on real bad replies. The seeded check is a floor. Weekly labelling after launch is the real test, with the switch-off rule in #48.

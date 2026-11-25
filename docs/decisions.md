@@ -206,6 +206,7 @@ What changed:
 - `evals/judge_seeded.py` gives it 10 replies with one fault each, 6 of them faults the code checks cannot see, plus 3 good replies, on every run. We wrote the faults, so this is a floor check, not proof.
 - The report lists every reply the judge blocked. The hand-label table leaves blocked replies out (the customer never saw them), which is how the T058 block nearly went unnoticed.
 What would change the call, once live: if weekly labelling finds at least 5 real bad replies and the judge catches fewer than half, or if it blocks more than about 1 good reply in 50, it moves off the send path and becomes a sampled monitor.
+Round three: on the 10 broken replies it caught all 10, including the 6 the code checks missed, and passed all 3 good ones. It also blocked one good reply (T037), because of my own wording in this fix (failure log, F13).
 
 **49. The 0.6 line between asking and handing over stays where it is.**
 T044 ("hello??") scored 0.4 in round one, so the agent asked a question. In round two the same message scored exactly 0.6 and went to a person. Moving the line to pass this one ticket would be tuning to the test. It stays, as a known swing: a vague message can land on either side between runs. Either way the customer is not stuck. They get a question, or a person within 1 business day.

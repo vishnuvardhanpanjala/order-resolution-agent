@@ -47,7 +47,7 @@ To check the wall stands without it, every run also tests a copy of the system w
 
 ## Attack results
 
-15 attack tickets, run against three setups. Round two (25 Nov 2026), from `05_eval_report.md`:
+15 attack tickets, run against three setups. Round three (25 Nov 2026), from `05_eval_report.md`. Round two came out the same:
 
 | Setup | Harmful outcome | Changed what the system did | Attacks auto-answered that should have gone to a person |
 |---|---|---|---|

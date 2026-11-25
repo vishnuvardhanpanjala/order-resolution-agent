@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 402" width="760" height="402" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" role="img" aria-label="The model reads and writes. Code decides and acts.">
+<title>The model reads and writes. Code decides and acts.</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8c959f"/></marker></defs>
+<rect x="0" y="0" width="760" height="402" rx="12" fill="#ffffff"/>
+<text x="24" y="34" font-size="15" font-weight="600" fill="#1f2328">The model reads and writes. Code decides and acts.</text>
+<text x="24" y="56" font-size="11.5" fill="#59636e">Shaded steps use a model. Every other step is code.</text>
+<g fill="none" stroke="#8c959f" stroke-width="1.25">
+<path d="M147.0 116H171.0" marker-end="url(#arrow)"/>
+<path d="M294.0 116H318.0" marker-end="url(#arrow)"/>
+<path d="M441.0 116H465.0" marker-end="url(#arrow)"/>
+<path d="M588.0 116H612.0" marker-end="url(#arrow)"/>
+<path d="M147.0 224H171.0" marker-end="url(#arrow)"/>
+<path d="M294.0 224H318.0" marker-end="url(#arrow)"/>
+<path d="M441.0 224H465.0" marker-end="url(#arrow)"/>
+<path d="M588.0 224H612.0" marker-end="url(#arrow)"/>
+<path d="M673.5 142.0V170H85.5V198.0" marker-end="url(#arrow)"/>
+<path d="M85.5 250.0V326.0" marker-end="url(#arrow)"/>
+<path d="M85.5 280H400V326.0" marker-end="url(#arrow)"/>
+</g>
+<rect x="24.0" y="90.0" width="123" height="52" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.25"/>
+<text x="85.5" y="113" text-anchor="middle" font-weight="600" fill="#1f2328">Message</text>
+<text x="85.5" y="131" text-anchor="middle" font-size="11.5" fill="#59636e">in the chat</text>
+<rect x="171.0" y="90.0" width="123" height="52" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.25"/>
+<text x="232.5" y="113" text-anchor="middle" font-weight="600" fill="#1f2328">Who is it?</text>
+<text x="232.5" y="131" text-anchor="middle" font-size="11.5" fill="#59636e">code</text>
+<rect x="318.0" y="90.0" width="123" height="52" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.25"/>
+<text x="379.5" y="113" text-anchor="middle" font-weight="600" fill="#1f2328">Attack scan</text>
+<text x="379.5" y="131" text-anchor="middle" font-size="11.5" fill="#59636e">code</text>
+<rect x="465.0" y="90.0" width="123" height="52" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="2"/>
+<text x="526.5" y="113" text-anchor="middle" font-weight="600" fill="#1f2328">Read message</text>
+<text x="526.5" y="131" text-anchor="middle" font-size="11.5" fill="#1f2328">model</text>
+<rect x="612.0" y="90.0" width="123" height="52" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.25"/>
+<text x="673.5" y="113" text-anchor="middle" font-weight="600" fill="#1f2328">Look up facts</text>
+<text x="673.5" y="131" text-anchor="middle" font-size="11.5" fill="#59636e">code</text>
+<rect x="24.0" y="198.0" width="123" height="52" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.25"/>
+<text x="85.5" y="221" text-anchor="middle" font-weight="600" fill="#1f2328">Apply policy</text>
+<text x="85.5" y="239" text-anchor="middle" font-size="11.5" fill="#59636e">code</text>
+<rect x="171.0" y="198.0" width="123" height="52" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.25"/>
+<text x="232.5" y="221" text-anchor="middle" font-weight="600" fill="#1f2328">Take action</text>
+<text x="232.5" y="239" text-anchor="middle" font-size="11.5" fill="#59636e">code</text>
+<rect x="318.0" y="198.0" width="123" height="52" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="2"/>
+<text x="379.5" y="221" text-anchor="middle" font-weight="600" fill="#1f2328">Write reply</text>
+<text x="379.5" y="239" text-anchor="middle" font-size="11.5" fill="#1f2328">model, no tools</text>
+<rect x="465.0" y="198.0" width="123" height="52" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.25"/>
+<text x="526.5" y="221" text-anchor="middle" font-weight="600" fill="#1f2328">Check reply</text>
+<text x="526.5" y="239" text-anchor="middle" font-size="11.5" fill="#59636e">code, then judge</text>
+<rect x="612.0" y="198.0" width="123" height="52" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.25"/>
+<text x="673.5" y="221" text-anchor="middle" font-weight="600" fill="#1f2328">Send</text>
+<text x="673.5" y="239" text-anchor="middle" font-size="11.5" fill="#59636e">own thread only</text>
+<rect x="30.0" y="326.0" width="220" height="52" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.25"/>
+<text x="140" y="349" text-anchor="middle" font-weight="600" fill="#1f2328">A person takes over</text>
+<text x="140" y="367" text-anchor="middle" font-size="11.5" fill="#59636e">with the case file</text>
+<rect x="290.0" y="326.0" width="220" height="52" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.25"/>
+<text x="400" y="349" text-anchor="middle" font-weight="600" fill="#1f2328">Approval queue</text>
+<text x="400" y="367" text-anchor="middle" font-size="11.5" fill="#59636e">a person approves first</text>
+<text x="95.5" y="306" font-size="11.5" fill="#59636e">risky or unclear</text>
+<text x="410" y="306" font-size="11.5" fill="#59636e">above S$80</text>
+</svg>

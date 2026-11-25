@@ -14,21 +14,7 @@ An AI agent that resolves customer order problems for an online shoe shop, end t
 
 ## How it works
 
-```mermaid
-flowchart LR
-    M[Customer message] --> ID[Who is this?<br/>code]
-    ID --> RS[Attack scan<br/>code]
-    RS --> CL[Read the message<br/>model]
-    CL --> T[Look up facts<br/>scoped tools, code]
-    T --> P[Apply the policy table<br/>code]
-    P --> G[Autonomy limits<br/>code]
-    G --> A[Take the action<br/>action service, code]
-    A --> D[Write the reply<br/>model]
-    D --> V[Check the reply<br/>code checks, then a model judge]
-    V --> S[Send]
-    P -->|risky or unclear| H[Hand to a person<br/>with the case file]
-    G -->|above S$80| Q[Approval queue<br/>a person approves]
-```
+![The pipeline: the model reads the message and writes the reply. Code checks identity, scans for attacks, looks up facts, applies the policy, takes the action and checks the reply. Risky or unclear cases go to a person; actions above S$80 wait for approval.](docs/pipeline.svg)
 
 The model is right most of the time, not every time. So it never gets the final say on money. A message is read into a fixed set of fields (request type, order number, size, claim type and so on), and from there it is code: a policy table with one test per row ([policy](docs/03_policy.md)), and an action service that checks every action against the customer, the policy and the role's money limit. The reply is drafted only from the points the decision allows, then checked: code catches wrong amounts, dates, IDs and links, and a second model reads for extra promises, missing points and tone.
 

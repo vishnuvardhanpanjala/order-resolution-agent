@@ -1,11 +1,11 @@
 {
  "n": 39,
- "tp": 21,
- "fp": 18,
+ "tp": 37,
+ "fp": 2,
  "fn": 0,
  "tn": 0,
- "base_rate": "18/39 (46%)",
- "catches_bad": "0/18 (0%)",
- "passes_good": "21/21 (100%)",
- "warning": ""
+ "base_rate": "2/39 (5%)",
+ "catches_bad": "0/2 (0%)",
+ "passes_good": "37/37 (100%)",
+ "warning": "Only 2 bad replies labelled. The catch rate can't be trusted below 5."
 }
